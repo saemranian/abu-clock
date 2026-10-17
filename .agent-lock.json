@@ -1,12 +1,12 @@
 {
-  "current_version": "v0.0.0.11",
+  "current_version": "v0.0.0.12",
   "active_locks": {
     "antigravity": {
       "status": "IDLE",
       "branch": "agent/antigravity/P3-T2-release-docs",
-      "task_id": "P3-T2",
+      "task_id": "P3-T3",
       "locked_paths": [],
-      "timestamp_utc": "2026-10-17T15:10:22Z"
+      "timestamp_utc": "2026-10-17T15:54:30Z"
     },
     "chatgpt": {
       "status": "IDLE",
