@@ -4,8 +4,15 @@
 //! virtual Phase-Locked Loop (PLL), SMPTE ST 2059-1 / ST 12-1 timecode math,
 //! and the hybrid sleep + spinlock deterministic timestep (`Hz`) ticker.
 
+pub mod clock;
+
+pub use clock::{
+    ClockConvergenceMetrics, ClockKalmanFilter, EmpiricalSt2059Trajectory, LockState, OverlayClock,
+    PlatformMonotonicClock, SharedClock, WARMUP_GATE_NS,
+};
+
 /// Canonical 4-part crate version synchronized by `scripts/bump_version.py`.
-pub const ABU_CLOCK_VERSION: &str = "v0.0.0.1";
+pub const ABU_CLOCK_VERSION: &str = "v0.0.0.2";
 
 #[cfg(test)]
 mod tests {
