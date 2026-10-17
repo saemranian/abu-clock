@@ -1,0 +1,77 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Abu Clock",
+  "version": "0.0.11",
+  "identifier": "dev.ahmademranian.abuclock",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Abu Clock \u2014 Precision SMPTE ST 2059 Timecode & Timestep (Hz) Master Clock",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "msi",
+      "nsis",
+      "dmg",
+      "app",
+      "deb",
+      "appimage"
+    ],
+    "iOS": {
+      "bundleVersion": "0.0.0.11",
+      "minimumSystemVersion": "16.0"
+    },
+    "macOS": {
+      "bundleVersion": "0.0.0.11",
+      "minimumSystemVersion": "13.0"
+    },
+    "android": {
+      "versionCode": 11,
+      "minSdkVersion": 29
+    }
+  },
+  "plugins": {
+    "keep-screen-on": {
+      "enabled": true
+    },
+    "android-battery-optimization": {
+      "requestIgnore": true
+    },
+    "udp": {
+      "defaultPorts": [
+        319,
+        320,
+        50319,
+        50320
+      ]
+    },
+    "tcp": {
+      "enabled": true
+    },
+    "tracing": {
+      "level": "info"
+    },
+    "serialport": {
+      "enabled": true
+    }
+  }
+}

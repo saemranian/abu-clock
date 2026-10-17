@@ -1,0 +1,15 @@
+[package]
+version = "0.0.9"
+title = "Abu Clock OpenUSD & Timeline Synchronization"
+description = "Drives NVIDIA Omniverse omni.timeline and OpenUSD scene graph evaluations using Abu Clock's disciplined SMPTE ST 2059-1/2 and AbuSync CSPTP master clock."
+authors = ["Ahmad Emranian <saemranian@gmail.com>"]
+repository = "https://github.com/saemranian/abu-clock"
+category = "Virtual Production"
+keywords = ["smpte", "ptp", "timecode", "timestep", "abu-clock", "openusd", "virtual-production"]
+
+[dependencies]
+"omni.timeline" = {}
+"omni.usd" = {}
+
+[[python.module]]
+name = "omni.abu.clock"

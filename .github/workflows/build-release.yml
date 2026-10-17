@@ -1,0 +1,59 @@
+name: Abu Clock Multi-OS CI & Release Pipeline
+
+on:
+  push:
+    branches: [main, dev]
+    tags:
+      - "v*.*.*.*"
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  verify-and-test:
+    name: Workspace Unit Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run Cargo Workspace Unit Tests
+        run: cargo test --workspace --verbose
+
+      - name: Verify Omniverse Kit Extension Python Module
+        shell: bash
+        run: |
+          python3 -c "import sys; sys.path.insert(0, 'integrations/omniverse-ext/omni.abu.clock'); from omni.abu.clock import AbuClockOmniverseExtension; ext = AbuClockOmniverseExtension(60, 1, False); ext.on_startup(); snap = ext.evaluate_usd_timeline_at_tai_ns(1_729_180_801_000_000_000); assert snap.frame_index == 60"
+
+  build-release-binaries:
+    name: Build Release Artifacts (${{ matrix.target }})
+    needs: verify-and-test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build Release Binaries & FFI Libraries
+        run: cargo build --workspace --release --target ${{ matrix.target }}
