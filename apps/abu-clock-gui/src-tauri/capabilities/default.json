@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for Abu Clock across desktop and mobile targets, including UDP/TCP sockets, screen wake-lock, Android battery optimization bypass, tracing, and serial port access.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "keep-screen-on:default",
+    "android-battery-optimization:default",
+    "udp:default",
+    "tcp:default",
+    "tracing:default",
+    "serialport:default"
+  ]
+}

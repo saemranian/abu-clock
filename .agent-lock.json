@@ -1,12 +1,12 @@
 {
-  "current_version": "v0.0.0.3",
+  "current_version": "v0.0.0.4",
   "active_locks": {
     "antigravity": {
       "status": "IDLE",
-      "branch": "agent/antigravity/P1-T2-smpte-timestep",
-      "task_id": "P1-T2",
+      "branch": "agent/antigravity/P1-T3-tauri-gui",
+      "task_id": "P1-T3",
       "locked_paths": [],
-      "timestamp_utc": "2026-10-17T14:47:58Z"
+      "timestamp_utc": "2026-10-17T14:51:25Z"
     },
     "chatgpt": {
       "status": "IDLE",

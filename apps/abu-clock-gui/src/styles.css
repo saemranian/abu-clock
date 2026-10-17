@@ -1,0 +1,112 @@
+:root {
+  --bg-dark: #07090e;
+  --panel-bg: #10141f;
+  --panel-border: #1e2638;
+  --text-primary: #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent-cyan: #06b6d4;
+  --status-locked: #10b981;
+  --status-locking: #f59e0b;
+  --status-unlocked: #ef4444;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.slate-container {
+  min-height: 100vh;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 14px 20px;
+}
+
+.digital-slate {
+  background: #020408;
+  border: 2px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 32px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.timecode-readout {
+  font-family: "JetBrains Mono", "Consolas", monospace;
+  font-size: clamp(2.8rem, 7vw, 6.2rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #38bdf8;
+  text-shadow: 0 0 24px rgba(56, 189, 248, 0.35);
+}
+
+.optical-flash-beacon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid #334155;
+  background: #0f172a;
+  transition: background 0.016s linear;
+}
+
+.optical-flash-beacon.active {
+  background: #ffffff;
+  box-shadow: 0 0 40px #ffffff;
+}
+
+.grid-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 18px;
+}
+
+.card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.badge.Locked {
+  background: rgba(16, 185, 129, 0.18);
+  color: var(--status-locked);
+}
+
+.badge.Locking {
+  background: rgba(245, 158, 11, 0.18);
+  color: var(--status-locking);
+}
+
+.badge.Unlocked {
+  background: rgba(239, 68, 68, 0.18);
+  color: var(--status-unlocked);
+}
