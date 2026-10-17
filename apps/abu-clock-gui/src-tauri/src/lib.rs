@@ -1,14 +1,16 @@
 //! Tauri v2 Rust backend bridge for the Abu Clock cross-platform GUI.
 //!
-//! Exposes high-rate slate snapshots, Master/Follower/BMCA role configuration,
-//! rational frame rate selection, PTP domain (0-127, default 1) management,
-//! and mobile wake-lock / battery optimization policies.
+//! Connects the Tauri v2 GUI directly to `abu-clock-core` (`OverlayClock`, `SmpteTimecodeEngine`)
+//! and `abu-network` (`DualModePtpEngine`, `AbuScanCoordinator`, `TimingProfileConfig`).
 
 use serde::{Deserialize, Serialize};
 
 use abu_clock_core::{
     ClockConvergenceMetrics, FrameRate, LockState, OverlayClock, PlatformMonotonicClock,
     SharedClock, SmpteTimecodeEngine, ABU_CLOCK_VERSION,
+};
+use abu_network::{
+    AbuScanCoordinator, DualModePtpEngine, PtpPortState, ScheduleCaptureAt, TimingProfileConfig,
 };
 
 /// Operating role of the local Abu Clock node.
@@ -36,6 +38,7 @@ pub struct GuiSlateSnapshot {
     pub role: OperatingRole,
     pub profile: GuiTimingProfile,
     pub ptp_domain: u8,
+    pub ptp_port_state: PtpPortState,
     pub priority1: u8,
     pub priority2: u8,
     pub slate_timecode: String,
@@ -52,10 +55,12 @@ pub struct GuiSlateSnapshot {
     pub convergence: ClockConvergenceMetrics,
 }
 
-/// Stateful controller backing the Tauri v2 GUI commands.
+/// Stateful controller backing the Tauri v2 GUI commands and binding `abu-clock-core` + `abu-network`.
 pub struct GuiAppController {
     pub clock: SharedClock,
     pub engine: SmpteTimecodeEngine,
+    pub ptp_engine: DualModePtpEngine,
+    pub scan_coordinator: AbuScanCoordinator,
     pub role: OperatingRole,
     pub profile: GuiTimingProfile,
     pub ptp_domain: u8,
@@ -75,9 +80,22 @@ impl GuiAppController {
     /// Initializes the GUI controller with SMPTE ST 2059-2 Domain 1 defaults (`29.97 DF`).
     pub fn new() -> Self {
         let initial_tai_ns = 1_729_180_800_000_000_000u64;
+        let clock = OverlayClock::new_shared(initial_tai_ns);
+        let engine = SmpteTimecodeEngine::new(FrameRate::FPS_29_97_DF, 0);
+        let profile_cfg = TimingProfileConfig::abusync_unprivileged(1);
+        let ptp_engine = DualModePtpEngine::new(
+            profile_cfg,
+            [0x00, 0x1A, 0x2B, 0xFF, 0xFE, 0xAB, 0xCD, 0x01],
+            FrameRate::FPS_29_97_DF,
+            clock.clone(),
+        );
+        let scan_coordinator = AbuScanCoordinator::new(clock.clone(), engine);
+
         Self {
-            clock: OverlayClock::new_shared(initial_tai_ns),
-            engine: SmpteTimecodeEngine::new(FrameRate::FPS_29_97_DF, 0),
+            clock,
+            engine,
+            ptp_engine,
+            scan_coordinator,
             role: OperatingRole::AutoBmca,
             profile: GuiTimingProfile::AbuSyncCsptp,
             ptp_domain: 1,
@@ -101,6 +119,7 @@ impl GuiAppController {
             role: self.role,
             profile: self.profile,
             ptp_domain: self.ptp_domain.min(127),
+            ptp_port_state: self.ptp_engine.port_state,
             priority1: self.priority1,
             priority2: self.priority2,
             slate_timecode: synth.timecode.to_slate_string(),
@@ -118,6 +137,11 @@ impl GuiAppController {
         }
     }
 
+    /// Schedules a future-time ($T_{\text{now}} + 50\text{ ms}$) multi-sensor capture from the GUI.
+    pub fn trigger_scheduled_capture(&mut self) -> ScheduleCaptureAt {
+        self.scan_coordinator.schedule_single_capture()
+    }
+
     /// Updates the active rational frame rate and user phase offset.
     pub fn set_timing_config(
         &mut self,
@@ -131,6 +155,8 @@ impl GuiAppController {
         self.profile = profile;
         self.ptp_domain = ptp_domain.min(127);
         self.engine = SmpteTimecodeEngine::new(frame_rate, user_offset_ns);
+        self.ptp_engine.active_frame_rate = frame_rate;
+        self.scan_coordinator = AbuScanCoordinator::new(self.clock.clone(), self.engine);
     }
 
     /// Checks whether the node is ready for production capture (either `Master` or `Locked` after 7s warm-up).
@@ -149,12 +175,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_controller_uses_domain_1_and_wake_lock() {
-        let ctrl = GuiAppController::new();
+    fn default_controller_uses_domain_1_and_schedules_capture() {
+        let mut ctrl = GuiAppController::new();
         let snap = ctrl.snapshot();
         assert_eq!(snap.ptp_domain, 1);
         assert!(snap.keep_screen_on_active);
         assert!(snap.battery_optimization_unrestricted);
         assert!(snap.slate_timecode.contains(';'));
+
+        let cap = ctrl.trigger_scheduled_capture();
+        assert_eq!(cap.sequence_id, 1);
     }
 }
