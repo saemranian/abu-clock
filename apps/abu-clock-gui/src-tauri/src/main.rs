@@ -1,13 +1,24 @@
 use std::env;
+use std::io::Write;
+use std::net::TcpStream;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use abu_clock_gui_lib::{server::run_http_server, GuiAppController};
+
+fn shutdown_existing_instance(addr: &str) {
+    if let Ok(mut stream) = TcpStream::connect(addr) {
+        let _ = stream.set_write_timeout(Some(Duration::from_millis(200)));
+        let _ = stream.write_all(b"POST /api/shutdown HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\n\r\n");
+        let _ = stream.flush();
+        std::thread::sleep(Duration::from_millis(180));
+    }
+}
 
 fn launch_desktop_window(url: &str) {
     #[cfg(target_os = "windows")]
     {
-        // Try launching a native chromeless desktop window via Microsoft Edge App Mode first
         let edge_launched = Command::new("cmd")
             .args([
                 "/C",
@@ -15,7 +26,7 @@ fn launch_desktop_window(url: &str) {
                 "",
                 "msedge",
                 &format!("--app={}", url),
-                "--window-size=1480,960",
+                "--window-size=1520,980",
             ])
             .spawn()
             .is_ok();
@@ -40,10 +51,13 @@ fn main() {
     let snap = controller.snapshot();
 
     println!("==================================================================");
-    println!("  ABU CLOCK — Unified PC Master Clock & Synchronization Studio");
     println!(
-        "  Version: {} | Backend: {} | Domain: {}",
-        snap.version, snap.monotonic_backend, snap.ptp_domain
+        "  ABU CLOCK ({}) — Unified PC Master Clock & Sync Studio",
+        snap.version
+    );
+    println!(
+        "  Backend: {} | Domain: {} | UDP Socket: {}",
+        snap.monotonic_backend, snap.ptp_domain, snap.udp_socket.bound_addr
     );
     println!(
         "  Initial Slate: {} ({}) | LockState: {:?}",
@@ -57,6 +71,8 @@ fn main() {
     }
 
     let addr = "127.0.0.1:7878";
+    shutdown_existing_instance(addr);
+
     let url = format!("http://{}", addr);
     println!("  Live Engine & Studio UI listening on: {}", url);
     println!("  Launching Abu Clock desktop window... (Press Ctrl+C to stop)");
@@ -67,6 +83,9 @@ fn main() {
 
     let shared = Arc::new(Mutex::new(controller));
     if let Err(e) = run_http_server(addr, shared) {
-        eprintln!("Abu Clock server notice: {} (Is Abu Clock already running on {}?)", e, url);
+        eprintln!(
+            "Abu Clock server notice: {} (Could not bind {})",
+            e, url
+        );
     }
 }

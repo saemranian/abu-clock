@@ -16,3 +16,4 @@ All notable version transitions (`vA.B.C.D`, incremented by `+1` per completed a
 | `v0.0.0.10` | `2026-10-17T15:08:11Z` | `antigravity` | `P3-T1` | Dedicated Linux hardware PTP daemon (/dev/ptp0), Maxim DS3231 RTC boot sync, and RoboSense gPTP configs |
 | `v0.0.0.11` | `2026-10-17T15:10:22Z` | `antigravity` | `P3-T2` | Open-source release packaging, multi-OS installers, and ahmademranian.dev/products spec docs |
 | `v0.0.0.12` | `2026-10-17T15:54:30Z` | `antigravity` | `P3-T3` | Unified Abu Clock PC Application, 5-tab live Control Center UI, and Graphical User Guide |
+| `v0.0.0.13` | `2026-10-17T16:24:13Z` | `antigravity` | `P3-T4` | Intuitive Vector-Icon Studio UI, Window Title Version, Live 8 Hz Servo, and Official User/Developer Manuals |

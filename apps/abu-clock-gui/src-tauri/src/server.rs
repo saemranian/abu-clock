@@ -2,12 +2,12 @@
 //!
 //! Serves both the embedded Unified Control Center UI (`GET /`) and real-time JSON endpoints
 //! (`GET /api/state`, `POST /api/config`, `POST /api/clock`, `POST /api/bmca`, `POST /api/trigger`,
-//! `POST /api/telemetry`, `POST /api/manifest`, `POST /api/appliance`) with CORS headers enabled
-//! so both the standalone `abu-clock.exe` window and `npm run dev` (Vite) connect seamlessly.
+//! `POST /api/telemetry`, `POST /api/manifest`, `POST /api/appliance`, `POST /api/shutdown`) with CORS headers.
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use abu_network::CameraPose6DoF;
 use serde::Deserialize;
@@ -46,9 +46,23 @@ struct ApplianceActionRequest {
     gnss_locked: bool,
 }
 
-/// Starts the Abu Clock local HTTP control server on `addr` (e.g. `127.0.0.1:7878`).
-pub fn run_http_server(addr: &str, controller: Arc<Mutex<GuiAppController>>) -> std::io::Result<()> {
+/// Starts the Abu Clock local HTTP control server on `addr` (`127.0.0.1:7878`) and spawns the
+/// continuous 8 Hz (`125 ms`) background Kalman servo ticker thread.
+pub fn run_http_server(
+    addr: &str,
+    controller: Arc<Mutex<GuiAppController>>,
+) -> std::io::Result<()> {
     let listener = TcpListener::bind(addr)?;
+
+    // Spawn 8 Hz (125 ms) live Kalman servo & loopback UDP telemetry ticker
+    let bg_ctrl = controller.clone();
+    std::thread::spawn(move || loop {
+        std::thread::sleep(Duration::from_millis(125));
+        if let Ok(mut guard) = bg_ctrl.lock() {
+            guard.background_servo_tick();
+        }
+    });
+
     for stream in listener.incoming().flatten() {
         let ctrl = controller.clone();
         std::thread::spawn(move || {
@@ -81,6 +95,13 @@ fn handle_connection(
         let resp = "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type\r\n\r\n";
         stream.write_all(resp.as_bytes())?;
         return Ok(());
+    }
+
+    if method == "POST" && path == "/api/shutdown" {
+        let resp = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK";
+        let _ = stream.write_all(resp.as_bytes());
+        let _ = stream.flush();
+        std::process::exit(0);
     }
 
     let body = raw
@@ -130,10 +151,13 @@ fn handle_connection(
                         guard.fast_forward_warmup();
                     }
                     "holdover" => {
-                        guard.set_simulated_lock_override(850, 8_000_000_000);
+                        guard.set_simulated_lock_override(3_500, 3_000_000_000);
                     }
                     "unlock" => {
-                        guard.set_simulated_lock_override(45_000, 1_000_000_000);
+                        guard.set_simulated_lock_override(1_500_000, 1_000_000_000);
+                    }
+                    "toggle_autosync" => {
+                        guard.auto_sync_enabled = !guard.auto_sync_enabled;
                     }
                     _ => {}
                 }

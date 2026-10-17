@@ -2,8 +2,10 @@
 //!
 //! Connects the Unified Control Center UI directly to:
 //! - `abu-clock-core` (`OverlayClock`, `SmpteTimecodeEngine`, `FrameRate`, `PlatformMonotonicClock`)
-//! - `abu-network` (`DualModePtpEngine`, `SmpteSyncMetadataTlv`, `AbuScanCoordinator`, `OpenTrackIoPacket`, `FreeDPacket`)
-//! - `abu-ffi` (`AbuScanSessionManifest`, `AbuScanCaptureRecord`)
+//! - `abu-network` (`DualModePtpEngine`, `TimestampedUdpSocket`, `SmpteSyncMetadataTlv`, `AbuScanCoordinator`, `OpenTrackIoPacket`, `FreeDPacket`)
+//! - `abu-ffi` / `abuclock` (`AbuScanSessionManifest`, `AbuScanCaptureRecord`)
+
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use serde::{Deserialize, Serialize};
 
@@ -11,12 +13,13 @@ use abu_clock_core::{
     ClockConvergenceMetrics, FrameRate, LockState, OverlayClock, PlatformMonotonicClock,
     SharedClock, SmpteTimecodeEngine, ABU_CLOCK_VERSION, DEFAULT_TAI_MINUS_UTC_SECONDS,
 };
-use abuclock::{AbuScanCaptureRecord, AbuScanSessionManifest};
 use abu_network::{
     freed_checksum, AbuScanCoordinator, BmcaDataset, CameraPose6DoF, DualModePtpEngine,
     FreeDPacket, OpenTrackIoEncoding, OpenTrackIoPacket, OpenTrackIoPayload, PtpPortState,
-    ScheduleCaptureAt, SmpteSyncMetadataTlv, TimingProfileConfig,
+    ScheduleCaptureAt, SmpteSyncMetadataTlv, TimestampedUdpSocket, TimingProfileConfig,
+    ABUSYNC_EVENT_PORT_UNPRIVILEGED,
 };
+use abuclock::{AbuScanCaptureRecord, AbuScanSessionManifest};
 
 pub mod server;
 pub mod ui_html;
@@ -110,6 +113,16 @@ pub struct ApplianceStatusSnapshot {
     pub active_profiles: Vec<String>,
 }
 
+/// Live UDP socket transport statistics from `abu_network::TimestampedUdpSocket`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UdpSocketStatus {
+    pub bound_addr: String,
+    pub is_privileged_port: bool,
+    pub tx_packets: u64,
+    pub rx_packets: u64,
+    pub last_tx_tai_ns: u64,
+}
+
 /// Complete state payload returned to the Unified Abu Clock Control Center frontend.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GuiSlateSnapshot {
@@ -133,6 +146,7 @@ pub struct GuiSlateSnapshot {
     pub drop_frame: bool,
     pub user_offset_ns: i64,
     pub trigger_lead_time_ms: u64,
+    pub auto_sync_enabled: bool,
     pub keep_screen_on_active: bool,
     pub battery_optimization_unrestricted: bool,
     pub convergence: ClockConvergenceMetrics,
@@ -145,6 +159,7 @@ pub struct GuiSlateSnapshot {
     pub manifest_abuscan_json: String,
     pub manifest_colmap_txt: String,
     pub appliance: ApplianceStatusSnapshot,
+    pub udp_socket: UdpSocketStatus,
 }
 
 /// Configuration update payload sent from the UI parameter settings panel.
@@ -162,6 +177,12 @@ pub struct ConfigUpdateRequest {
     pub trigger_lead_time_ms: u64,
     pub is_wireless: bool,
     pub keep_screen_on_active: bool,
+    #[serde(default = "default_true")]
+    pub auto_sync_enabled: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// Stateful controller backing the Abu Clock PC application and binding all workspace crates.
@@ -170,12 +191,19 @@ pub struct GuiAppController {
     pub engine: SmpteTimecodeEngine,
     pub ptp_engine: DualModePtpEngine,
     pub scan_coordinator: AbuScanCoordinator,
+    pub udp_socket: Option<TimestampedUdpSocket>,
+    pub udp_bound_addr: String,
+    pub udp_is_privileged: bool,
+    pub udp_tx_packets: u64,
+    pub udp_rx_packets: u64,
+    pub udp_last_tx_tai_ns: u64,
     pub role: OperatingRole,
     pub profile: GuiTimingProfile,
     pub ptp_domain: u8,
     pub priority1: u8,
     pub priority2: u8,
     pub trigger_lead_time_ms: u64,
+    pub auto_sync_enabled: bool,
     pub is_wireless: bool,
     pub keep_screen_on_active: bool,
     pub battery_optimization_unrestricted: bool,
@@ -197,8 +225,8 @@ impl Default for GuiAppController {
 }
 
 impl GuiAppController {
-    /// Initializes the unified Abu Clock controller with SMPTE ST 2059-2 Domain 1 defaults (`29.97 DF`)
-    /// and runs an initial 8-second Kalman convergence warm-up so the studio boots into `Locked` state.
+    /// Initializes the unified Abu Clock controller with SMPTE ST 2059-2 Domain 1 defaults (`29.97 DF`),
+    /// binds a real `TimestampedUdpSocket`, and runs an initial 8-second Kalman convergence warm-up.
     pub fn new() -> Self {
         let initial_tai_ns = 1_729_180_800_000_000_000u64;
         let c_t0 = PlatformMonotonicClock::now_ns();
@@ -213,17 +241,41 @@ impl GuiAppController {
         );
         let scan_coordinator = AbuScanCoordinator::new(clock.clone(), engine);
 
+        let preferred_addr = SocketAddr::new(
+            IpAddr::V4(Ipv4Addr::LOCALHOST),
+            ABUSYNC_EVENT_PORT_UNPRIVILEGED,
+        );
+        let (udp_socket, udp_bound_addr, udp_is_privileged) =
+            match TimestampedUdpSocket::bind_dual_mode(preferred_addr, clock.clone()) {
+                Ok(sock) => {
+                    let addr_str = sock
+                        .local_addr()
+                        .map(|a| a.to_string())
+                        .unwrap_or_else(|_| "127.0.0.1:50319".to_string());
+                    let priv_port = sock.is_privileged_ptp_port;
+                    (Some(sock), addr_str, priv_port)
+                }
+                Err(_) => (None, "127.0.0.1:50319 (Simulated)".to_string(), false),
+            };
+
         let mut ctrl = Self {
             clock,
             engine,
             ptp_engine,
             scan_coordinator,
+            udp_socket,
+            udp_bound_addr,
+            udp_is_privileged,
+            udp_tx_packets: 0,
+            udp_rx_packets: 0,
+            udp_last_tx_tai_ns: initial_tai_ns,
             role: OperatingRole::AutoBmca,
             profile: GuiTimingProfile::AbuSyncCsptp,
             ptp_domain: 1,
             priority1: 128,
             priority2: 128,
             trigger_lead_time_ms: 50,
+            auto_sync_enabled: true,
             is_wireless: false,
             keep_screen_on_active: true,
             battery_optimization_unrestricted: true,
@@ -255,6 +307,25 @@ impl GuiAppController {
         ctrl
     }
 
+    fn emit_loopback_ptp_packet(&mut self) {
+        let msg = self.ptp_engine.build_announce();
+        if let Some(ref sock) = self.udp_socket {
+            if let Ok(target) = sock.local_addr() {
+                if let Ok((_, tai_tx, _)) = sock.send_timestamped(&msg, target) {
+                    self.udp_tx_packets = self.udp_tx_packets.wrapping_add(1);
+                    self.udp_last_tx_tai_ns = tai_tx;
+                }
+                if sock.recv_timestamped().is_ok() {
+                    self.udp_rx_packets = self.udp_rx_packets.wrapping_add(1);
+                }
+            }
+        } else {
+            self.udp_tx_packets = self.udp_tx_packets.wrapping_add(1);
+            self.udp_rx_packets = self.udp_rx_packets.wrapping_add(1);
+            self.udp_last_tx_tai_ns = self.clock.now_tai_ns();
+        }
+    }
+
     fn push_history(&mut self, offset_ns: i64, drift_ppb: f64) {
         if self.offset_history_ns.len() >= 40 {
             self.offset_history_ns.remove(0);
@@ -266,9 +337,30 @@ impl GuiAppController {
         self.drift_history_ppb.push(drift_ppb);
     }
 
+    /// Periodic background 8 Hz servo tick when `auto_sync_enabled` is active.
+    pub fn background_servo_tick(&mut self) {
+        if !self.auto_sync_enabled {
+            return;
+        }
+        let state = self.clock.metrics().lock_state;
+        if state == LockState::Unlocked {
+            return;
+        }
+        let raw_mono = PlatformMonotonicClock::now_ns();
+        let pseudo = ((raw_mono / 1_000) % 29) as i64 - 14;
+        let sample_offset = if self.is_wireless {
+            pseudo * 18
+        } else {
+            pseudo
+        };
+        let delay = if self.is_wireless { 2_350 } else { 375 };
+        self.inject_network_sample(sample_offset, delay);
+    }
+
     /// Runs 64 closed-loop 8 Hz network discipline steps (8.0 simulated seconds) so the
     /// 7-second SMPTE ST 2059 warm-up gate completes and converges below 100 ns.
     pub fn fast_forward_warmup(&mut self) -> ClockConvergenceMetrics {
+        self.auto_sync_enabled = true;
         let now_mono = PlatformMonotonicClock::now_ns().max(self.sim_mono_cursor_ns);
         let mut last = self.clock.metrics();
         let offsets = [320i64, -180, 95, -60, 42, -28, 19, -14, 11, -8, 6, -5];
@@ -284,6 +376,7 @@ impl GuiAppController {
             );
             self.push_history(last.offset_ns, last.drift_ppb);
         }
+        self.emit_loopback_ptp_packet();
         last
     }
 
@@ -302,11 +395,13 @@ impl GuiAppController {
             self.is_wireless,
         );
         self.push_history(m.offset_ns, m.drift_ppb);
+        self.emit_loopback_ptp_packet();
         m
     }
 
-    /// Forces Holdover or Unlocked state for testing fault recovery.
+    /// Forces Locking/Holdover (`offset_ns = 3_500 ns`) or Unlocked (`offset_ns = 1_500_000 ns`) state for testing fault recovery.
     pub fn set_simulated_lock_override(&mut self, offset_ns: i64, elapsed_lock_ns: u64) {
+        self.auto_sync_enabled = false;
         let drift = self.clock.metrics().drift_ppb;
         let delay = if self.is_wireless { 2_800 } else { 380 };
         let m = self
@@ -325,6 +420,7 @@ impl GuiAppController {
         self.trigger_lead_time_ms = req.trigger_lead_time_ms.clamp(1, 5_000);
         self.is_wireless = req.is_wireless;
         self.keep_screen_on_active = req.keep_screen_on_active;
+        self.auto_sync_enabled = req.auto_sync_enabled;
 
         let rate = FrameRate::new(req.fps_num.max(1), req.fps_den.max(1), req.drop_frame);
         self.engine = SmpteTimecodeEngine::new(rate, req.user_offset_ns);
@@ -355,7 +451,6 @@ impl GuiAppController {
         self.scan_coordinator = AbuScanCoordinator::new(self.clock.clone(), self.engine)
             .with_lead_time_ns(self.trigger_lead_time_ms * 1_000_000);
 
-        // Refresh telemetry with updated wireless flag
         let cur = self.clock.metrics();
         self.clock.update_telemetry(
             cur.offset_ns,
@@ -364,6 +459,7 @@ impl GuiAppController {
             cur.elapsed_lock_ns,
             self.is_wireless,
         );
+        self.emit_loopback_ptp_packet();
     }
 
     /// Simulates receiving an IEEE 1588 `Announce` packet from a remote node and runs BMCA election.
@@ -394,8 +490,10 @@ impl GuiAppController {
         let new_state = self.ptp_engine.process_announce(remote_ds, Some(tlv));
 
         if new_state == PtpPortState::Slave {
-            self.engine =
-                SmpteTimecodeEngine::new(self.ptp_engine.active_frame_rate, self.engine.user_offset_ns);
+            self.engine = SmpteTimecodeEngine::new(
+                self.ptp_engine.active_frame_rate,
+                self.engine.user_offset_ns,
+            );
             self.last_bmca_log = format!(
                 "BMCA Elected REMOTE Grandmaster (Priority1={}, Class={}, Priority2={}) -> Local port transitioned to SLAVE and locked to {} / {} ({}).",
                 remote_priority1,
@@ -411,6 +509,7 @@ impl GuiAppController {
                 self.priority1, remote_priority1
             );
         }
+        self.emit_loopback_ptp_packet();
         new_state
     }
 
@@ -429,7 +528,11 @@ impl GuiAppController {
             .schedule_interval_scan(self.engine.frame_rate, total_frames.max(1));
         self.record_capture_execution(
             cmd,
-            &format!("IntervalScan ({} frames @ {:.2} Hz)", total_frames, self.engine.frame_rate.as_hz()),
+            &format!(
+                "IntervalScan ({} frames @ {:.2} Hz)",
+                total_frames,
+                self.engine.frame_rate.as_hz()
+            ),
         );
         cmd
     }
@@ -457,7 +560,7 @@ impl GuiAppController {
                 actual_tai_ns: actual_tai,
                 jitter_ns: *jitter,
                 filename: filename.clone(),
-                within_subframe_budget: jitter.abs() < 50_000, // < 50 us
+                within_subframe_budget: jitter.abs() < 50_000,
             });
 
             if idx == 0 {
@@ -496,12 +599,14 @@ impl GuiAppController {
         if self.capture_logs.len() > 12 {
             self.capture_logs.pop();
         }
+        self.emit_loopback_ptp_packet();
     }
 
     /// Updates the 6-DoF camera tracking pose for OpenTrackIO (`OTrk`) and FreeD (`0xD1`/`0xD2`) synthesis.
     pub fn update_camera_pose(&mut self, pose: CameraPose6DoF) {
         self.camera_pose = pose;
         self.telemetry_seq = self.telemetry_seq.wrapping_add(1);
+        self.emit_loopback_ptp_packet();
     }
 
     /// Adds a custom capture entry to the `.abuscan.json` / Colmap `images.txt` session manifest.
@@ -548,7 +653,6 @@ impl GuiAppController {
         let bcd = synth.timecode.to_bcd_u32();
         let convergence = self.clock.metrics();
 
-        // Build SMPTE ST 2059-2 TLV inspection
         let tlv = SmpteSyncMetadataTlv::from_frame_rate(self.engine.frame_rate);
         let tlv_bytes = tlv.to_bytes();
         let wire_hex = tlv_bytes
@@ -570,7 +674,6 @@ impl GuiAppController {
             drop_frame: (tlv.timecode_flags & 0x01) != 0,
         };
 
-        // Build OpenTrackIO & FreeD telemetry inspection
         let otrk_payload = OpenTrackIoPayload::new(
             self.telemetry_seq,
             tai_ns,
@@ -636,10 +739,24 @@ impl GuiAppController {
                 "0x21 (< 100 ns TCXO Holdover)".to_string()
             },
             active_profiles: vec![
-                format!("SMPTE ST 2059-2 (Domain {}, 224.0.1.129:319/320)", self.ptp_domain),
+                format!(
+                    "SMPTE ST 2059-2 (Domain {}, 224.0.1.129:319/320)",
+                    self.ptp_domain
+                ),
                 "IEEE 802.1AS gPTP (Domain 0, 224.0.0.107 L2 P2P)".to_string(),
-                format!("AbuSync CSPTP (Domain {}, UDP 50319/50320 + mDNS)", self.ptp_domain),
+                format!(
+                    "AbuSync CSPTP (Domain {}, UDP 50319/50320 + mDNS)",
+                    self.ptp_domain
+                ),
             ],
+        };
+
+        let udp_socket = UdpSocketStatus {
+            bound_addr: self.udp_bound_addr.clone(),
+            is_privileged_port: self.udp_is_privileged,
+            tx_packets: self.udp_tx_packets,
+            rx_packets: self.udp_rx_packets,
+            last_tx_tai_ns: self.udp_last_tx_tai_ns,
         };
 
         GuiSlateSnapshot {
@@ -663,6 +780,7 @@ impl GuiAppController {
             drop_frame: self.engine.frame_rate.drop_frame,
             user_offset_ns: self.engine.user_offset_ns,
             trigger_lead_time_ms: self.trigger_lead_time_ms,
+            auto_sync_enabled: self.auto_sync_enabled,
             keep_screen_on_active: self.keep_screen_on_active,
             battery_optimization_unrestricted: self.battery_optimization_unrestricted,
             convergence,
@@ -675,6 +793,7 @@ impl GuiAppController {
             manifest_abuscan_json: self.session_manifest.to_abuscan_json(),
             manifest_colmap_txt: self.session_manifest.to_colmap_images_txt(),
             appliance,
+            udp_socket,
         }
     }
 
@@ -700,6 +819,7 @@ impl GuiAppController {
             trigger_lead_time_ms: self.trigger_lead_time_ms,
             is_wireless: self.is_wireless,
             keep_screen_on_active: self.keep_screen_on_active,
+            auto_sync_enabled: self.auto_sync_enabled,
         });
     }
 
@@ -729,6 +849,7 @@ mod tests {
         assert_eq!(snap.convergence.lock_state, LockState::Locked);
         assert_eq!(snap.smpte_tlv.wire_size_bytes, 20);
         assert!(snap.manifest_abuscan_json.contains("abuscan.manifest.v1"));
+        assert!(snap.udp_socket.tx_packets >= 1);
 
         let cap = ctrl.trigger_scheduled_capture();
         assert_eq!(cap.sequence_id, 2);

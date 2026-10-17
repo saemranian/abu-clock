@@ -4,7 +4,7 @@ import { FRAME_RATE_PRESETS, FrameRatePreset, GuiSlateSnapshot, GuiTimingProfile
 const API_BASE = "http://127.0.0.1:7878";
 
 const INITIAL_SNAPSHOT: GuiSlateSnapshot = {
-  version: "v0.0.0.12",
+  version: "v0.0.0.13",
   monotonic_backend: "QueryPerformanceCounter (Windows QPC)",
   role: "AutoBmca",
   profile: "AbuSyncCsptp",
@@ -39,6 +39,10 @@ export const App: React.FC = () => {
   const [selectedPreset, setSelectedPreset] = useState<FrameRatePreset>(FRAME_RATE_PRESETS[3]);
   const [liveRustConnected, setLiveRustConnected] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"dashboard" | "ptp" | "trigger" | "appliance" | "help">("dashboard");
+
+  useEffect(() => {
+    document.title = `Abu Clock ${snapshot.version} — Precision Master Clock, Timecode & Sync Studio`;
+  }, [snapshot.version]);
 
   useEffect(() => {
     const timer = window.setInterval(async () => {

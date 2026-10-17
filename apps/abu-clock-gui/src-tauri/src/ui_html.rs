@@ -1,26 +1,27 @@
 //! Embedded single-page studio UI (`INDEX_HTML`) for the **Abu Clock** PC Application (`abu-clock`).
 //!
-//! Provides a unified dark-mode Broadcast & Virtual Production Control Center with 5 interactive tabs:
-//! 1. Clock, Parameters & Kalman PLL Test Bench
-//! 2. PTP Engine, BMCA Simulator & SMPTE ST 2059-2 TLV Hex Inspector
-//! 3. Multi-Sensor Barrier Trigger (`SCHEDULE_CAPTURE_AT`), OpenTrackIO/FreeD Telemetry & Manifest Exporter
-//! 4. Phase 3 Hardware Grandmaster Appliance Monitor (`Pi CM4 + DS3231 TCXO + PHC`)
-//! 5. Built-in Help, Core Fundamentals & Graphical Step-by-Step User Guide
+//! Features:
+//! - Dynamic window title bar with live version (`Abu Clock v0.0.0.13 — ...`) and custom SVG favicon
+//! - Crisp vector SVG icons across all navigation tabs, status badges, KPI cards, and action buttons
+//! - 1-Click Studio Scenario Presets & Live 8 Hz Auto-Sync Stream toggle
+//! - Interactive 4-section Visual Help, Engineering Fundamentals & Developer SDK Hub
 
 pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Abu Clock — Precision Master Clock, Timecode & Sync Studio</title>
+  <title>Abu Clock v0.0.0.13 — Precision Master Clock, Timecode &amp; Sync Studio</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1325' stroke='%2338bdf8' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='20' fill='none' stroke='%2338bdf8' stroke-width='3.5'/%3E%3Cpath d='M32 18v14l10 6' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='32' r='3.5' fill='%23f8fafc'/%3E%3C/svg%3E" />
   <style>
     :root {
       --bg-0: #060911;
-      --bg-1: #0d1322;
-      --bg-2: #131c31;
-      --bg-3: #1c2942;
-      --border: #263554;
-      --text: #f1f5f9;
+      --bg-1: #0c1322;
+      --bg-2: #121c31;
+      --bg-3: #1b2844;
+      --border: #243453;
+      --border-hi: #38bdf8;
+      --text: #f8fafc;
       --muted: #94a3b8;
       --cyan: #38bdf8;
       --emerald: #10b981;
@@ -31,16 +32,59 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      background: radial-gradient(circle at top right, #0f172a 0%, var(--bg-0) 70%);
+      background: radial-gradient(circle at 85% 0%, #0f1d36 0%, var(--bg-0) 65%);
       color: var(--text);
       font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
       min-height: 100vh;
     }
     .app-shell {
-      max-width: 1500px;
+      max-width: 1520px;
       margin: 0 auto;
-      padding: 16px 22px 40px;
+      padding: 14px 22px 44px;
     }
+    svg.ico {
+      width: 16px;
+      height: 16px;
+      vertical-align: -3px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+    svg.ico-lg {
+      width: 22px;
+      height: 22px;
+    }
+
+    /* Toast Notification */
+    #toast-banner {
+      position: fixed;
+      bottom: 20px;
+      right: 24px;
+      background: linear-gradient(135deg, #0284c7, #0f172a);
+      border: 1px solid #38bdf8;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.65);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: all 0.2s ease;
+      z-index: 9999;
+    }
+    #toast-banner.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
     /* Top Header */
     .top-bar {
       display: flex;
@@ -51,23 +95,55 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       padding-bottom: 12px;
       border-bottom: 1px solid var(--border);
     }
-    .brand-title {
+    .brand-left {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 13px;
     }
-    .brand-title h1 {
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, rgba(56,189,248,0.18), rgba(16,185,129,0.15));
+      border: 1px solid rgba(56,189,248,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--cyan);
+      box-shadow: 0 0 20px rgba(56,189,248,0.18);
+    }
+    .brand-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-title-row h1 {
       margin: 0;
-      font-size: 1.55rem;
-      letter-spacing: 0.08em;
+      font-size: 1.48rem;
+      letter-spacing: 0.07em;
       font-weight: 800;
-      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      background: linear-gradient(90deg, #38bdf8, #a5b4fc);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
+    .version-pill {
+      background: rgba(56,189,248,0.16);
+      color: #7dd3fc;
+      border: 1px solid rgba(56,189,248,0.45);
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-family: "JetBrains Mono", "Consolas", monospace;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
     .subtitle {
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       color: var(--muted);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
     .badge-row {
       display: flex;
@@ -76,85 +152,107 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       flex-wrap: wrap;
     }
     .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
       padding: 5px 11px;
       border-radius: 999px;
-      font-size: 0.74rem;
+      font-size: 0.73rem;
       font-weight: 700;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
       border: 1px solid transparent;
     }
-    .badge.Locked { background: rgba(16,185,129,0.16); color: #34d399; border-color: rgba(16,185,129,0.4); }
-    .badge.WarmingUp { background: rgba(245,158,11,0.16); color: #fbbf24; border-color: rgba(245,158,11,0.4); }
-    .badge.Holdover { background: rgba(168,85,247,0.16); color: #c084fc; border-color: rgba(168,85,247,0.4); }
-    .badge.Unlocked { background: rgba(244,63,94,0.16); color: #fb7185; border-color: rgba(244,63,94,0.4); }
-    .badge.info { background: rgba(56,189,248,0.14); color: #38bdf8; border-color: rgba(56,189,248,0.35); }
+    .badge.Locked { background: rgba(16,185,129,0.15); color: #34d399; border-color: rgba(16,185,129,0.42); }
+    .badge.Locking, .badge.WarmingUp { background: rgba(245,158,11,0.15); color: #fbbf24; border-color: rgba(245,158,11,0.42); }
+    .badge.Holdover { background: rgba(168,85,247,0.15); color: #c084fc; border-color: rgba(168,85,247,0.42); }
+    .badge.Unlocked { background: rgba(244,63,94,0.15); color: #fb7185; border-color: rgba(244,63,94,0.42); }
+    .badge.info { background: rgba(56,189,248,0.13); color: #38bdf8; border-color: rgba(56,189,248,0.35); }
+    .dot-pulse {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
 
     /* Master Digital Slate Ribbon */
     .digital-slate {
-      margin-top: 14px;
-      background: linear-gradient(180deg, #090d18 0%, #05070e 100%);
-      border: 2px solid #1e293b;
+      margin-top: 12px;
+      background: linear-gradient(180deg, #090e1a 0%, #050811 100%);
+      border: 1px solid #1e2d4a;
       border-radius: 14px;
-      padding: 16px 24px;
+      padding: 15px 22px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 18px;
-      box-shadow: 0 12px 32px rgba(0,0,0,0.55);
+      gap: 16px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.5);
     }
     .tc-main {
       font-family: "JetBrains Mono", "Cascadia Mono", "Consolas", monospace;
-      font-size: clamp(2.2rem, 4.6vw, 4.1rem);
+      font-size: clamp(2.1rem, 4.3vw, 3.85rem);
       font-weight: 800;
       letter-spacing: 0.05em;
       color: var(--cyan);
-      text-shadow: 0 0 24px rgba(56,189,248,0.35);
+      text-shadow: 0 0 24px rgba(56,189,248,0.32);
       line-height: 1.05;
     }
     .tc-meta {
-      margin-top: 6px;
+      margin-top: 7px;
       font-family: "JetBrains Mono", "Consolas", monospace;
-      font-size: 0.84rem;
+      font-size: 0.81rem;
       color: var(--muted);
       display: flex;
-      gap: 16px;
+      gap: 14px;
       flex-wrap: wrap;
+    }
+    .tc-meta span {
+      background: rgba(15,23,42,0.75);
+      border: 1px solid #1e293b;
+      padding: 3px 8px;
+      border-radius: 6px;
     }
     .tc-meta span strong { color: var(--text); }
     .slate-right {
       display: flex;
       align-items: center;
-      gap: 20px;
+      gap: 18px;
     }
     .phase-box {
-      width: 170px;
+      width: 185px;
+      background: rgba(12,19,34,0.8);
+      border: 1px solid var(--border);
+      padding: 9px 12px;
+      border-radius: 10px;
     }
     .phase-bar-bg {
       width: 100%;
-      height: 10px;
+      height: 9px;
       background: #1e293b;
       border-radius: 99px;
       overflow: hidden;
-      margin-top: 4px;
+      margin-top: 5px;
     }
     .phase-bar-fill {
       height: 100%;
       background: linear-gradient(90deg, #38bdf8, #10b981);
-      transition: width 0.05s linear;
+      transition: width 0.04s linear;
     }
     .optical-beacon {
-      width: 64px;
-      height: 64px;
+      width: 68px;
+      height: 68px;
       border-radius: 12px;
-      background: #0f172a;
-      border: 2px solid #334155;
+      background: #0b1120;
+      border: 2px solid #283756;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-size: 0.68rem;
-      font-weight: 700;
+      gap: 3px;
+      font-size: 0.64rem;
+      font-weight: 800;
       color: #64748b;
       text-align: center;
       transition: all 0.04s ease;
@@ -163,42 +261,117 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       background: #ffffff;
       color: #020617;
       border-color: #38bdf8;
-      box-shadow: 0 0 38px #ffffff, 0 0 70px #38bdf8;
+      box-shadow: 0 0 36px #ffffff, 0 0 70px #38bdf8;
     }
 
-    /* Navigation Tabs */
+    /* Single-Row 5-Tab Navigation Bar */
     .tabs-nav {
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
       gap: 8px;
-      margin-top: 16px;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 10px;
-      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+    @media (max-width: 1100px) {
+      .tabs-nav { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
     }
     .tab-btn {
       background: var(--bg-1);
       color: var(--muted);
       border: 1px solid var(--border);
-      padding: 9px 16px;
-      border-radius: 9px;
+      padding: 10px 12px;
+      border-radius: 10px;
       cursor: pointer;
-      font-weight: 600;
-      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
       transition: all 0.15s ease;
     }
     .tab-btn:hover {
       color: var(--text);
       background: var(--bg-2);
+      border-color: #3b5280;
     }
     .tab-btn.active {
-      background: rgba(56,189,248,0.16);
+      background: linear-gradient(135deg, rgba(56,189,248,0.18), rgba(37,99,235,0.14));
       color: var(--cyan);
       border-color: var(--cyan);
-      box-shadow: 0 0 16px rgba(56,189,248,0.2);
+      box-shadow: 0 4px 18px rgba(56,189,248,0.15);
+    }
+    .tab-icon-box {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(15,23,42,0.75);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .tab-btn.active .tab-icon-box {
+      background: rgba(56,189,248,0.2);
+      border-color: rgba(56,189,248,0.5);
+      color: #fff;
+    }
+    .tab-title {
+      font-size: 0.83rem;
+      font-weight: 700;
+      color: var(--text);
+      display: block;
+    }
+    .tab-sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+      display: block;
+      margin-top: 1px;
+    }
+
+    /* Quick Scenario Preset Strip */
+    .preset-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: rgba(12,19,34,0.75);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 14px;
+      margin-bottom: 14px;
+    }
+    .preset-label {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .preset-chip {
+      background: var(--bg-2);
+      color: #e2e8f0;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 11px;
+      font-size: 0.77rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.14s ease;
+    }
+    .preset-chip:hover {
+      border-color: var(--cyan);
+      background: var(--bg-3);
+      color: #fff;
     }
 
     /* Grid & Cards */
-    .tab-pane { display: none; margin-top: 16px; }
+    .tab-pane { display: none; margin-top: 14px; }
     .tab-pane.active { display: block; }
     .grid-2 {
       display: grid;
@@ -207,8 +380,8 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
     }
     .grid-3 {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+      gap: 14px;
     }
     .card {
       background: var(--bg-1);
@@ -218,16 +391,39 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
     }
     .card h2 {
       margin: 0 0 12px 0;
-      font-size: 1.02rem;
+      font-size: 0.98rem;
       color: var(--cyan);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 8px;
+    }
+    .card-title-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .card h3 {
       margin: 14px 0 8px 0;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .section-divider {
+      font-size: 0.73rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #7dd3fc;
+      margin: 12px 0 8px 0;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(36,52,83,0.7);
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     .form-grid {
       display: grid;
@@ -238,8 +434,9 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       display: flex;
       flex-direction: column;
       gap: 5px;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       color: var(--muted);
+      font-weight: 500;
     }
     input, select {
       background: var(--bg-0);
@@ -247,12 +444,13 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       border: 1px solid var(--border);
       border-radius: 7px;
       padding: 8px 10px;
-      font-size: 0.86rem;
+      font-size: 0.84rem;
       font-family: inherit;
     }
     input:focus, select:focus {
       outline: none;
       border-color: var(--cyan);
+      box-shadow: 0 0 0 2px rgba(56,189,248,0.18);
     }
     .btn-row {
       display: flex;
@@ -266,35 +464,40 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       border: 1px solid #3b4f78;
       border-radius: 8px;
       padding: 8px 13px;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       transition: all 0.14s ease;
     }
     button.btn:hover {
       background: #283a5e;
       border-color: var(--cyan);
     }
+    button.btn.sm {
+      padding: 4px 9px;
+      font-size: 0.73rem;
+    }
     button.btn.primary {
       background: linear-gradient(135deg, #0284c7, #2563eb);
       border-color: #38bdf8;
       color: #fff;
     }
-    button.btn.primary:hover {
-      filter: brightness(1.12);
-    }
+    button.btn.primary:hover { filter: brightness(1.12); }
     button.btn.emerald {
-      background: rgba(16,185,129,0.2);
+      background: rgba(16,185,129,0.18);
       border-color: #10b981;
       color: #34d399;
     }
     button.btn.amber {
-      background: rgba(245,158,11,0.2);
+      background: rgba(245,158,11,0.18);
       border-color: #f59e0b;
       color: #fbbf24;
     }
     button.btn.rose {
-      background: rgba(244,63,94,0.2);
+      background: rgba(244,63,94,0.18);
       border-color: #f43f5e;
       color: #fb7185;
     }
@@ -302,9 +505,12 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
     /* Telemetry KPI boxes */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 10px;
       margin-bottom: 12px;
+    }
+    @media (max-width: 700px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
     }
     .kpi-box {
       background: var(--bg-0);
@@ -313,14 +519,17 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       padding: 10px 12px;
     }
     .kpi-box .kpi-label {
-      font-size: 0.73rem;
+      font-size: 0.72rem;
       color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
     .kpi-box .kpi-val {
       font-family: "JetBrains Mono", "Consolas", monospace;
-      font-size: 1.12rem;
+      font-size: 1.08rem;
       font-weight: 700;
-      margin-top: 3px;
+      margin-top: 4px;
       color: var(--text);
     }
 
@@ -331,17 +540,17 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       border-radius: 8px;
       padding: 11px 13px;
       font-family: "JetBrains Mono", "Consolas", monospace;
-      font-size: 0.78rem;
+      font-size: 0.77rem;
       color: #a5f3fc;
       overflow-x: auto;
-      max-height: 250px;
+      max-height: 240px;
       margin: 6px 0 0 0;
       line-height: 1.45;
     }
     table.data-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.8rem;
+      font-size: 0.79rem;
       margin-top: 8px;
     }
     table.data-table th, table.data-table td {
@@ -355,45 +564,126 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       font-weight: 600;
       background: rgba(15,23,42,0.6);
     }
-    .help-article p, .help-article li {
-      color: #cbd5e1;
-      line-height: 1.6;
-      font-size: 0.9rem;
+
+    /* Redesigned Help Sub-Navigation & Visual Cards */
+    .help-subnav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      background: var(--bg-1);
+      padding: 8px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
     }
-    .step-badge {
+    .help-subbtn {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid transparent;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
       display: inline-flex;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: var(--cyan);
-      color: #020617;
+      align-items: center;
+      gap: 7px;
+    }
+    .help-subbtn:hover { color: var(--text); background: var(--bg-2); }
+    .help-subbtn.active {
+      background: rgba(56,189,248,0.16);
+      color: var(--cyan);
+      border-color: rgba(56,189,248,0.45);
+    }
+    .help-section { display: none; }
+    .help-section.active { display: block; }
+    .tour-step-card {
+      background: var(--bg-0);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .tour-step-hdr {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #38bdf8, #2563eb);
+      color: #fff;
       font-weight: 800;
-      font-size: 0.8rem;
+      font-size: 0.84rem;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      margin-right: 8px;
+      flex-shrink: 0;
+    }
+    .tour-step-body {
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      line-height: 1.55;
     }
   </style>
 </head>
 <body>
+  <!-- Floating Toast Feedback -->
+  <div id="toast-banner">
+    <svg class="ico" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+    <span id="toast-text">Settings applied to Rust engine</span>
+  </div>
+
   <div class="app-shell">
     <!-- Top Header -->
     <header class="top-bar">
-      <div class="brand-title">
+      <div class="brand-left">
+        <div class="brand-logo" title="Abu Clock Master Precision Oscillators">
+          <svg class="ico ico-lg" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9"/>
+            <polyline points="12 7 12 12 15.5 14"/>
+          </svg>
+        </div>
         <div>
-          <h1>ABU CLOCK</h1>
+          <div class="brand-title-row">
+            <h1>ABU CLOCK</h1>
+            <span id="hdr-version" class="version-pill">v0.0.0.13</span>
+          </div>
           <div class="subtitle">
-            Unified PC Master Clock, Timecode &amp; Multi-Sensor Synchronization Studio &bull;
-            <span id="hdr-version">v0.0.0.12</span> &bull;
-            Backend: <strong id="hdr-backend">QueryPerformanceCounter</strong>
+            <span>Precision Master Clock, Timecode &amp; Multi-Sensor Sync Studio</span>
+            <span>&bull;</span>
+            <span>Oscillator: <strong id="hdr-backend" style="color:#e2e8f0;">Windows::QueryPerformanceCounter</strong></span>
+            <span>&bull;</span>
+            <span>Socket: <strong id="hdr-udp" style="color:#38bdf8;">127.0.0.1:50319 (TX: 0 / RX: 0)</strong></span>
           </div>
         </div>
       </div>
+
       <div class="badge-row">
-        <span id="badge-lock" class="badge Locked">LOCKED</span>
-        <span id="badge-port" class="badge info">PORT: LISTENING</span>
-        <span id="badge-transport" class="badge info">WIRED LAN</span>
-        <span id="badge-wakelock" class="badge Locked">WAKE-LOCK ON</span>
+        <span id="badge-lock" class="badge Locked">
+          <span class="dot-pulse"></span>
+          <span id="badge-lock-text">LOCKED</span>
+        </span>
+        <span id="badge-port" class="badge info">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span id="badge-port-text">PORT: LISTENING</span>
+        </span>
+        <span id="badge-transport" class="badge info">
+          <svg class="ico" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <span id="badge-transport-text">WIRED LAN</span>
+        </span>
+        <span id="badge-wakelock" class="badge Locked">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          <span id="badge-wakelock-text">WAKE-LOCK ON</span>
+        </span>
       </div>
     </header>
 
@@ -402,60 +692,132 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       <div>
         <div id="slate-tc" class="tc-main">00:00:00;00.00</div>
         <div class="tc-meta">
-          <span>Frame: <strong id="slate-frame">#0</strong></span>
-          <span>BCD (32-bit): <strong id="slate-bcd">0x00000000</strong></span>
-          <span>Rate: <strong id="slate-rate">29.970 Hz (DF)</strong></span>
-          <span>Domain: <strong id="slate-domain">1</strong></span>
-          <span>TAI (ns): <strong id="slate-tai">1729180800000000000</strong></span>
+          <span>Frame <strong id="slate-frame">#0</strong></span>
+          <span>BCD (32b) <strong id="slate-bcd">0x00000000</strong></span>
+          <span>Rate <strong id="slate-rate">29.970 Hz (DF)</strong></span>
+          <span>PTP Domain <strong id="slate-domain">1</strong></span>
+          <span>TAI (ns) <strong id="slate-tai">1729180800000000000</strong></span>
         </div>
       </div>
       <div class="slate-right">
         <div class="phase-box">
-          <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);">
+          <div style="display:flex;justify-content:space-between;font-size:0.74rem;color:var(--muted);">
             <span>Sub-Frame Phase (&phi;)</span>
-            <strong id="slate-phase-text">0.000</strong>
+            <strong id="slate-phase-text" style="color:var(--cyan);">0.000</strong>
           </div>
           <div class="phase-bar-bg">
             <div id="slate-phase-bar" class="phase-bar-fill" style="width:0%"></div>
           </div>
-          <div style="font-size:0.72rem;color:var(--muted);margin-top:6px;">
-            User Trim: <strong id="slate-trim">0 ns</strong>
+          <div style="display:flex;justify-content:space-between;font-size:0.71rem;color:var(--muted);margin-top:6px;">
+            <span>User Phase Trim:</span>
+            <strong id="slate-trim" style="color:var(--text);">0 ns</strong>
           </div>
         </div>
-        <div id="optical-beacon" class="optical-beacon" title="Fires full-white optical flash on Frame 00 for high-speed camera validation">
-          FRAME 00<br/>FLASH
+        <div id="optical-beacon" class="optical-beacon" title="Optical Sync Flash Beacon: Flashes pure white on Frame 00 for high-speed camera validation">
+          <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
+          <span>FRAME 00<br/>FLASH</span>
         </div>
       </div>
     </section>
 
-    <!-- Navigation Tabs -->
+    <!-- Single-Row 5-Tab Navigation Bar with Vector Icons -->
     <nav class="tabs-nav">
-      <button class="tab-btn active" onclick="switchTab('tab-dashboard', this)">
-        1. Clock, Settings &amp; Kalman PLL
+      <button id="nav-tab-dashboard" class="tab-btn active" onclick="switchTab('tab-dashboard', this)">
+        <div class="tab-icon-box">
+          <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </div>
+        <div>
+          <span class="tab-title">1. Clock &amp; Kalman PLL</span>
+          <span class="tab-sub">Settings, Presets &amp; Servo Scope</span>
+        </div>
       </button>
-      <button class="tab-btn" onclick="switchTab('tab-ptp', this)">
-        2. PTP Engine &amp; ST 2059-2 TLV
+
+      <button id="nav-tab-ptp" class="tab-btn" onclick="switchTab('tab-ptp', this)">
+        <div class="tab-icon-box">
+          <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </div>
+        <div>
+          <span class="tab-title">2. PTP &amp; ST 2059-2 TLV</span>
+          <span class="tab-sub">BMCA Failover &amp; 20B Wire Hex</span>
+        </div>
       </button>
-      <button class="tab-btn" onclick="switchTab('tab-trigger', this)">
-        3. Barrier Trigger, Telemetry &amp; Manifests
+
+      <button id="nav-tab-trigger" class="tab-btn" onclick="switchTab('tab-trigger', this)">
+        <div class="tab-icon-box">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </div>
+        <div>
+          <span class="tab-title">3. Trigger &amp; Telemetry</span>
+          <span class="tab-sub">+50ms Barrier, FreeD &amp; Manifest</span>
+        </div>
       </button>
-      <button class="tab-btn" onclick="switchTab('tab-appliance', this)">
-        4. Grandmaster Hardware Appliance
+
+      <button id="nav-tab-appliance" class="tab-btn" onclick="switchTab('tab-appliance', this)">
+        <div class="tab-icon-box">
+          <svg class="ico" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        </div>
+        <div>
+          <span class="tab-title">4. Grandmaster Appliance</span>
+          <span class="tab-sub">Pi CM4 + DS3231 TCXO + PHC</span>
+        </div>
       </button>
-      <button class="tab-btn" onclick="switchTab('tab-help', this)">
-        5. Help, Fundamentals &amp; Graphical Guide
+
+      <button id="nav-tab-help" class="tab-btn" onclick="switchTab('tab-help', this)">
+        <div class="tab-icon-box">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </div>
+        <div>
+          <span class="tab-title">5. Visual Guide &amp; SDK</span>
+          <span class="tab-sub">Interactive Manual &amp; Dev Docs</span>
+        </div>
       </button>
     </nav>
 
     <!-- TAB 1: DASHBOARD, SETTINGS & KALMAN PLL -->
     <div id="tab-dashboard" class="tab-pane active">
+      <!-- 1-Click Scenario Presets -->
+      <div class="preset-strip">
+        <span class="preset-label">
+          <svg class="ico" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          1-Click Studio Presets:
+        </span>
+        <button class="preset-chip" onclick="applyStudioPreset('Master','SmpteSt2059_2',1,64,128,'24,1,false',false,'Virtual Production (24 fps Cinema + ST 2059-2 GM)')">
+          <svg class="ico" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/></svg>
+          Virtual Production (24 fps + ST 2059-2)
+        </button>
+        <button class="preset-chip" onclick="applyStudioPreset('AutoBmca','SmpteSt2059_2',1,128,128,'30000,1001,true',false,'Broadcast NTSC (29.97 Drop-Frame + Domain 1)')">
+          <svg class="ico" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
+          Broadcast NTSC (29.97 DF)
+        </button>
+        <button class="preset-chip" onclick="applyStudioPreset('Master','Ieee802_1AsGptp',0,64,128,'10,1,false',false,'LiDAR Array (10 Hz Sweep + IEEE 802.1AS gPTP)')">
+          <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          RoboSense / XGRIDS LiDAR (10 Hz gPTP)
+        </button>
+        <button class="preset-chip" onclick="applyStudioPreset('AutoBmca','AbuSyncCsptp',1,128,128,'60,1,false',false,'UE5 / NVIDIA Omniverse (60 fps + AbuSync CSPTP)')">
+          <svg class="ico" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          UE5 &amp; Omniverse (60 fps)
+        </button>
+        <button class="preset-chip" onclick="applyStudioPreset('Follower','AbuSyncCsptp',1,128,128,'30000,1001,true',true,'Mobile Wi-Fi Follower Rig (AbuSync UDP 50319 + Wi-Fi EMA)')">
+          <svg class="ico" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          Mobile Wi-Fi Follower Rig
+        </button>
+      </div>
+
       <div class="grid-2">
         <!-- Parameter Settings Card -->
         <section class="card">
           <h2>
-            <span>Master / Follower &amp; Timing Parameter Settings</span>
-            <span class="badge info">Live Rust Engine</span>
+            <span class="card-title-left">
+              <svg class="ico" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+              Master / Follower &amp; Timing Parameter Settings
+            </span>
+            <span class="badge info">LIVE RUST ENGINE</span>
           </h2>
+
+          <div class="section-divider">
+            <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+            Network Role, Profile &amp; BMCA Identity
+          </div>
           <div class="form-grid">
             <label>
               Operating Role (BMCA Mode)
@@ -475,6 +837,24 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
               </select>
             </label>
             <label>
+              PTP Domain (0–127, Default 1)
+              <input id="cfg-domain" type="number" min="0" max="127" value="1" />
+            </label>
+            <label>
+              BMCA Priority 1 / Priority 2
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <input id="cfg-prio1" type="number" min="0" max="255" value="128" title="BMCA Priority 1 (Lower wins)" />
+                <input id="cfg-prio2" type="number" min="0" max="255" value="128" title="BMCA Priority 2 (Tiebreaker)" />
+              </div>
+            </label>
+          </div>
+
+          <div class="section-divider">
+            <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            SMPTE ST 12-1 Timecode &amp; Barrier Cadence
+          </div>
+          <div class="form-grid">
+            <label>
               Rational Frame Rate / LiDAR Cadence
               <select id="cfg-fps">
                 <option value="24000,1001,false">23.976 fps (24000/1001 NDF)</option>
@@ -492,18 +872,6 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
               </select>
             </label>
             <label>
-              PTP Domain (0–127, Default 1)
-              <input id="cfg-domain" type="number" min="0" max="127" value="1" />
-            </label>
-            <label>
-              BMCA Priority 1 (0–255)
-              <input id="cfg-prio1" type="number" min="0" max="255" value="128" />
-            </label>
-            <label>
-              BMCA Priority 2 (0–255)
-              <input id="cfg-prio2" type="number" min="0" max="255" value="128" />
-            </label>
-            <label>
               User Phase Trim Offset (ns)
               <input id="cfg-offset-ns" type="number" step="100" value="0" />
             </label>
@@ -512,80 +880,112 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
               <input id="cfg-lead-ms" type="number" min="2" max="2000" value="50" />
             </label>
             <label>
-              Network Medium (Kalman Variance)
-              <select id="cfg-wireless">
-                <option value="false">Wired Ethernet (&lt; 100 ns Lock Gate)</option>
-                <option value="true">Wireless Wi-Fi (&lt; 500 &mu;s EMA Lock Gate)</option>
-              </select>
-            </label>
-            <label>
-              Display Wake-Lock
-              <select id="cfg-wakelock">
-                <option value="true">Keep Screen Awake (Active)</option>
-                <option value="false">Allow OS Sleep</option>
-              </select>
+              Network Medium &amp; Wake-Lock
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <select id="cfg-wireless" title="Transport Medium">
+                  <option value="false">Wired LAN (&lt;100ns)</option>
+                  <option value="true">Wi-Fi (&lt;500&mu;s)</option>
+                </select>
+                <select id="cfg-wakelock" title="Screen Wake-Lock">
+                  <option value="true">Wake-Lock ON</option>
+                  <option value="false">Wake-Lock OFF</option>
+                </select>
+              </div>
             </label>
           </div>
+
           <div class="btn-row">
-            <button class="btn primary" onclick="applyConfig()">Apply Settings to Rust Engine</button>
+            <button class="btn primary" onclick="applyConfig()">
+              <svg class="ico" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+              Apply Settings to Rust Engine
+            </button>
+            <button id="btn-autosync" class="btn emerald" onclick="clockAction('toggle_autosync', 'Toggled 8 Hz Live Servo Stream')">
+              <svg class="ico" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              <span id="btn-autosync-text">8 Hz Auto-Sync Stream: ON</span>
+            </button>
           </div>
         </section>
 
         <!-- Kalman PLL & Oscilloscope Card -->
         <section class="card">
           <h2>
-            <span>2-State Kalman PLL &amp; 7.0s ST 2059 Warm-Up Gate</span>
-            <span id="kalman-gate-label" class="badge Locked">WARM-UP: 100%</span>
+            <span class="card-title-left">
+              <svg class="ico" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              2-State Kalman PLL &amp; 7.0s ST 2059 Warm-Up Gate
+            </span>
+            <span id="kalman-gate-label" class="badge Locked">7.0S WARM-UP: 100%</span>
           </h2>
           <div class="kpi-grid">
             <div class="kpi-box">
-              <div class="kpi-label">Phase Offset (&theta;)</div>
+              <div class="kpi-label">
+                <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Phase Offset (&theta;)
+              </div>
               <div id="kpi-offset" class="kpi-val">0 ns</div>
             </div>
             <div class="kpi-box">
-              <div class="kpi-label">Crystal Drift (&alpha;)</div>
+              <div class="kpi-label">
+                <svg class="ico" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+                Crystal Drift (&alpha;)
+              </div>
               <div id="kpi-drift" class="kpi-val">0.00 ppb</div>
             </div>
             <div class="kpi-box">
-              <div class="kpi-label">One-Way Delay (d)</div>
+              <div class="kpi-label">
+                <svg class="ico" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                One-Way Delay (d)
+              </div>
               <div id="kpi-delay" class="kpi-val">380 ns</div>
             </div>
             <div class="kpi-box">
-              <div class="kpi-label">Kalman Variance (P00)</div>
+              <div class="kpi-label">
+                <svg class="ico" viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+                Kalman Variance
+              </div>
               <div id="kpi-var" class="kpi-val">0.0 ns&sup2;</div>
             </div>
           </div>
 
           <!-- Live SVG Oscilloscope -->
           <div style="background:#050811;border:1px solid var(--border);border-radius:9px;padding:10px;">
-            <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);margin-bottom:4px;">
-              <span>Live Phase Offset History (&theta; in nanoseconds, last 40 servo samples)</span>
-              <span id="osc-latest-text">Latest: 0 ns</span>
+            <div style="display:flex;justify-content:space-between;font-size:0.74rem;color:var(--muted);margin-bottom:4px;">
+              <span>Live Phase Offset Oscilloscope (&theta; in ns, 40-sample sliding window)</span>
+              <span id="osc-latest-text" style="color:var(--cyan);font-weight:700;">Latest: 0 ns</span>
             </div>
             <svg id="osc-svg" viewBox="0 0 600 130" style="width:100%;height:130px;display:block;">
+              <line x1="0" y1="30" x2="600" y2="30" stroke="#111a2e" stroke-width="1" />
               <line x1="0" y1="65" x2="600" y2="65" stroke="#1e293b" stroke-dasharray="4 4" />
+              <line x1="0" y1="100" x2="600" y2="100" stroke="#111a2e" stroke-width="1" />
               <polyline id="osc-line" fill="none" stroke="#38bdf8" stroke-width="2.5" points="0,65 600,65" />
             </svg>
           </div>
 
-          <h3>Interactive Clock Discipline &amp; Fault Injection Test Bench</h3>
+          <h3>
+            <span>Interactive Clock Discipline &amp; Fault Injection Test Bench</span>
+          </h3>
           <div class="btn-row">
-            <button class="btn emerald" onclick="clockAction('tick_clean')">
-              + Inject Clean Wired PTP Tick (&plusmn;9 ns)
+            <button class="btn emerald" onclick="clockAction('tick_clean', 'Injected Clean Wired PTP Sample (±9 ns)')">
+              <svg class="ico" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              Inject Clean PTP Tick (&plusmn;9 ns)
             </button>
-            <button class="btn amber" onclick="clockAction('tick_wifi')">
-              + Inject Wi-Fi Delay Spike (+1,850 ns)
+            <button class="btn amber" onclick="clockAction('tick_wifi', 'Injected Wi-Fi Delay Spike (+1,850 ns)')">
+              <svg class="ico" viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+              Inject Wi-Fi Spike (+1,850 ns)
             </button>
-            <button class="btn amber" onclick="clockAction('step_50us')">
-              + Inject +50 &mu;s Phase Disturbance
+            <button class="btn amber" onclick="clockAction('step_50us', 'Injected +50 µs Phase Disturbance')">
+              <svg class="ico" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Inject +50 &mu;s Disturbance
             </button>
-            <button class="btn primary" onclick="clockAction('fast_forward_7s')">
-              &raquo; Fast-Forward 7.0s ST 2059 Warm-Up (Converge &amp; Lock)
+            <button class="btn primary" onclick="clockAction('fast_forward_7s', 'Completed 7.0s ST 2059 Warm-Up Gate -> LOCKED')">
+              <svg class="ico" viewBox="0 0 24 24"><polygon points="13 19 22 12 13 5 13 19"/><polygon points="2 19 11 12 2 5 2 19"/></svg>
+              Fast-Forward 7.0s Warm-Up (Converge &amp; Lock)
             </button>
-            <button class="btn" onclick="clockAction('holdover')">
+            <button class="btn" onclick="clockAction('holdover', 'Entered Oscillator Holdover State')">
+              <svg class="ico" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
               Simulate Holdover
             </button>
-            <button class="btn rose" onclick="clockAction('unlock')">
+            <button class="btn rose" onclick="clockAction('unlock', 'Simulated Clock Unlock Fault')">
+              <svg class="ico" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               Simulate Unlock Fault
             </button>
           </div>
@@ -598,12 +998,15 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       <div class="grid-2">
         <section class="card">
           <h2>
-            <span>IEEE 1588-2019 Best Master Clock Algorithm (BMCA) Simulator</span>
-            <span id="bmca-port-badge" class="badge info">LISTENING</span>
+            <span class="card-title-left">
+              <svg class="ico" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              IEEE 1588-2019 Best Master Clock Algorithm (BMCA) Simulator
+            </span>
+            <span id="bmca-port-badge" class="badge info">PORT: LISTENING</span>
           </h2>
-          <p style="font-size:0.83rem;color:var(--muted);margin-top:0;">
+          <p style="font-size:0.82rem;color:var(--muted);margin-top:0;">
             Inject a simulated remote <code>Announce</code> frame carrying a SMPTE ST 2059-2 TLV.
-            If the remote node has a lower (better) <code>Priority 1</code> or <code>Clock Class</code> than your local node,
+            Lower values win in IEEE 1588 BMCA: if the remote node has a lower <code>Priority 1</code> (e.g. <code>64</code> vs <code>128</code>),
             <code>DualModePtpEngine</code> transitions to <code>SLAVE</code> and automatically locks to the remote SMPTE frame rate.
           </p>
           <div class="form-grid">
@@ -631,6 +1034,7 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
           </div>
           <div class="btn-row">
             <button class="btn primary" onclick="runBmcaTest()">
+              <svg class="ico" viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
               Inject Remote Announce &amp; Run BMCA Election
             </button>
           </div>
@@ -640,12 +1044,21 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
 
         <section class="card">
           <h2>
-            <span>Live SMPTE ST 2059-2 Synchronization Metadata TLV Inspector</span>
+            <span class="card-title-left">
+              <svg class="ico" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              Live SMPTE ST 2059-2 Synchronization Metadata TLV Inspector
+            </span>
             <span class="badge Locked">20 Bytes Big-Endian</span>
           </h2>
-          <p style="font-size:0.83rem;color:var(--muted);margin-top:0;">
-            Real-time hexadecimal dump of <code>SmpteSyncMetadataTlv::to_bytes()</code> appended to outbound PTP <code>Announce</code> packets:
-          </p>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:0.81rem;color:var(--muted);">
+              Live wire dump of <code>SmpteSyncMetadataTlv::to_bytes()</code>:
+            </span>
+            <button class="btn sm" onclick="copyElementText('tlv-hex-box', 'Copied 20-byte ST 2059-2 TLV hex')">
+              <svg class="ico" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy Hex
+            </button>
+          </div>
           <pre id="tlv-hex-box" class="code-box" style="font-size:0.95rem;color:#38bdf8;font-weight:700;"></pre>
           <table class="data-table">
             <thead>
@@ -656,46 +1069,14 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>Bytes 0..1</td>
-                <td>tlvType</td>
-                <td id="tlv-type">0x0003 (Organization Extension)</td>
-              </tr>
-              <tr>
-                <td>Bytes 2..3</td>
-                <td>lengthField</td>
-                <td>0x0010 (16 bytes payload)</td>
-              </tr>
-              <tr>
-                <td>Bytes 4..6</td>
-                <td>organizationId</td>
-                <td id="tlv-org">00-0E-9B (SMPTE OUI)</td>
-              </tr>
-              <tr>
-                <td>Bytes 7..9</td>
-                <td>organizationSubType</td>
-                <td id="tlv-sub">00-00-01 (ST 2059-2 SM)</td>
-              </tr>
-              <tr>
-                <td>Bytes 10..11</td>
-                <td>currentUtcOffset</td>
-                <td id="tlv-utc">+37 s (TAI - UTC)</td>
-              </tr>
-              <tr>
-                <td>Bytes 12..15</td>
-                <td>defaultSystemFrameRate (Num)</td>
-                <td id="tlv-num">30000</td>
-              </tr>
-              <tr>
-                <td>Bytes 16..18</td>
-                <td>defaultSystemFrameRate (Den 24-bit)</td>
-                <td id="tlv-den">1001</td>
-              </tr>
-              <tr>
-                <td>Byte 19</td>
-                <td>timecodeFlags</td>
-                <td id="tlv-flags">0x01 (Drop-Frame)</td>
-              </tr>
+              <tr><td>Bytes 0..1</td><td>tlvType</td><td id="tlv-type">0x0003 (Organization Extension)</td></tr>
+              <tr><td>Bytes 2..3</td><td>lengthField</td><td>0x0010 (16 bytes payload)</td></tr>
+              <tr><td>Bytes 4..6</td><td>organizationId</td><td id="tlv-org">00-0E-9B (SMPTE OUI)</td></tr>
+              <tr><td>Bytes 7..9</td><td>organizationSubType</td><td id="tlv-sub">00-00-01 (ST 2059-2 SM)</td></tr>
+              <tr><td>Bytes 10..11</td><td>currentUtcOffset</td><td id="tlv-utc">+37 s (TAI - UTC)</td></tr>
+              <tr><td>Bytes 12..15</td><td>defaultSystemFrameRate (Num)</td><td id="tlv-num">30000</td></tr>
+              <tr><td>Bytes 16..18</td><td>defaultSystemFrameRate (Den 24-bit)</td><td id="tlv-den">1001</td></tr>
+              <tr><td>Byte 19</td><td>timecodeFlags</td><td id="tlv-flags">0x01 (Drop-Frame)</td></tr>
             </tbody>
           </table>
         </section>
@@ -708,24 +1089,28 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
         <!-- Barrier Trigger Card -->
         <section class="card">
           <h2>
-            <span>Multi-Sensor Barrier Trigger (<code>SCHEDULE_CAPTURE_AT</code>)</span>
+            <span class="card-title-left">
+              <svg class="ico" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              Multi-Sensor Barrier Trigger (<code>SCHEDULE_CAPTURE_AT</code>)
+            </span>
             <span class="badge Locked">Sub-50&mu;s Spinlock</span>
           </h2>
-          <p style="font-size:0.82rem;color:var(--muted);margin-top:0;">
-            Instead of sending an immediate "capture now" packet that suffers from variable Wi-Fi/LAN transit delay,
-            <code>AbuScanCoordinator</code> broadcasts a future target TAI nanosecond ($T_{\text{now}} + \Delta T_{\text{lead}}$).
-            Every rig counts down locally against its disciplined <code>OverlayClock</code> and fires at the exact same physical instant.
+          <p style="font-size:0.81rem;color:var(--muted);margin-top:0;">
+            Eliminates Wi-Fi/LAN packet transit jitter by broadcasting a future target TAI nanosecond ($T_{\text{now}} + \Delta T_{\text{lead}}$).
+            Every rig sleeps until $T_{\text{exec}} - 500\ \mu\text{s}$ and spins on its hardware monotonic counter to trigger at the exact same instant.
           </p>
           <div class="btn-row">
             <button class="btn primary" onclick="fireTrigger('single', 1)">
-              &#9889; Fire SCHEDULE_CAPTURE_AT (+Lead Time)
+              <svg class="ico" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Fire SCHEDULE_CAPTURE_AT (+Lead Time)
             </button>
             <button class="btn emerald" onclick="fireTrigger('burst', 5)">
-              &#128248; Schedule 5-Frame Synchronized Burst Scan
+              <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              Schedule 5-Frame Synchronized Burst Scan
             </button>
           </div>
           <h3>Latest Multi-Rig Barrier Receipts</h3>
-          <div id="trigger-summary" style="font-size:0.82rem;color:var(--cyan);margin-bottom:6px;"></div>
+          <div id="trigger-summary" style="font-size:0.8rem;color:var(--cyan);margin-bottom:6px;font-family:monospace;"></div>
           <table class="data-table">
             <thead>
               <tr>
@@ -742,7 +1127,10 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
         <!-- 6-DoF Camera Telemetry Card -->
         <section class="card">
           <h2>
-            <span>6-DoF Camera Tracking Telemetry (OpenTrackIO &amp; FreeD)</span>
+            <span class="card-title-left">
+              <svg class="ico" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              6-DoF Camera Tracking Telemetry (OpenTrackIO &amp; FreeD)
+            </span>
             <span id="telem-seq-badge" class="badge info">SEQ #1</span>
           </h2>
           <div class="form-grid">
@@ -757,14 +1145,24 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
           </div>
           <div class="btn-row">
             <button class="btn primary" onclick="updateTelemetryPose()">
+              <svg class="ico" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
               Synthesize OpenTrackIO &amp; FreeD Packets
             </button>
           </div>
-          <h3>Standard 29-Byte FreeD (<code>0xD1</code>) Wire Hex + Modulo-256 Checksum</h3>
+          <h3>
+            <span>Standard 29-Byte FreeD (<code>0xD1</code>) + Checksum</span>
+            <button class="btn sm" onclick="copyElementText('freed-d1-box', 'Copied 29-byte FreeD 0xD1 hex')">Copy</button>
+          </h3>
           <pre id="freed-d1-box" class="code-box"></pre>
-          <h3>Extended 41-Byte AbuTrack FreeD-TC (<code>0xD2</code>) with Embedded BCD Timecode &amp; TAI</h3>
+          <h3>
+            <span>Extended 41-Byte AbuTrack FreeD-TC (<code>0xD2</code>)</span>
+            <button class="btn sm" onclick="copyElementText('freed-d2-box', 'Copied 41-byte FreeD-TC 0xD2 hex')">Copy</button>
+          </h3>
           <pre id="freed-d2-box" class="code-box"></pre>
-          <h3>SMPTE RIS OpenTrackIO (<code>OTrk</code>) JSON Payload</h3>
+          <h3>
+            <span>SMPTE RIS OpenTrackIO (<code>OTrk</code>) JSON Payload</span>
+            <button class="btn sm" onclick="copyElementText('otrk-json-box', 'Copied OpenTrackIO JSON')">Copy</button>
+          </h3>
           <pre id="otrk-json-box" class="code-box"></pre>
         </section>
       </div>
@@ -772,23 +1170,33 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       <!-- Session Manifest Exporter -->
       <section class="card" style="margin-top:16px;">
         <h2>
-          <span>Synchronized Session Manifest Exporter (<code>.abuscan.json</code> &amp; Colmap <code>images.txt</code>)</span>
+          <span class="card-title-left">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Synchronized Session Manifest Exporter (<code>.abuscan.json</code> &amp; Colmap <code>images.txt</code>)
+          </span>
           <span class="badge info">RealityCapture / 3DGS / Postshot Ready</span>
         </h2>
         <div class="btn-row" style="margin-top:0;margin-bottom:10px;">
-          <input id="manifest-sensor" type="text" value="SonyA1_Rig03" style="width:180px;" />
-          <input id="manifest-ext" type="text" value="arw" style="width:80px;" />
+          <input id="manifest-sensor" type="text" value="SonyA1_Rig03" style="width:180px;" placeholder="Sensor ID" />
+          <input id="manifest-ext" type="text" value="arw" style="width:80px;" placeholder="Ext" />
           <button class="btn emerald" onclick="addManifestRecord()">
-            + Stamp &amp; Append Sensor Capture to Manifest
+            <svg class="ico" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Stamp &amp; Append Sensor Capture to Manifest
           </button>
         </div>
         <div class="grid-2">
           <div>
-            <h3><code>.abuscan.json</code> Session Manifest</h3>
+            <h3>
+              <span><code>.abuscan.json</code> Session Manifest</span>
+              <button class="btn sm" onclick="copyElementText('manifest-json-box', 'Copied .abuscan.json manifest')">Copy JSON</button>
+            </h3>
             <pre id="manifest-json-box" class="code-box"></pre>
           </div>
           <div>
-            <h3>Colmap / Jawset Postshot <code>images.txt</code></h3>
+            <h3>
+              <span>Colmap / Jawset Postshot <code>images.txt</code></span>
+              <button class="btn sm" onclick="copyElementText('manifest-colmap-box', 'Copied Colmap images.txt')">Copy Colmap</button>
+            </h3>
             <pre id="manifest-colmap-box" class="code-box"></pre>
           </div>
         </div>
@@ -800,10 +1208,13 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       <div class="grid-2">
         <section class="card">
           <h2>
-            <span>Phase 3 Hardware Grandmaster Appliance Monitor</span>
+            <span class="card-title-left">
+              <svg class="ico" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg>
+              Phase 3 Hardware Grandmaster Appliance Monitor
+            </span>
             <span id="app-lock-badge" class="badge Locked">GNSS / TCXO LOCKED (CLASS 6)</span>
           </h2>
-          <p style="font-size:0.84rem;color:var(--muted);margin-top:0;">
+          <p style="font-size:0.83rem;color:var(--muted);margin-top:0;">
             Monitors and simulates the dedicated <strong>Raspberry Pi CM4 / Pi 5 + Maxim DS3231 TCXO (&plusmn;2 ppm) + Intel I210-T1 PCIe PHC</strong>
             hardware Grandmaster appliance (<code>abu-daemon --appliance-mode</code>).
           </p>
@@ -827,16 +1238,23 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
           </div>
           <div class="btn-row">
             <button class="btn emerald" onclick="setApplianceLock(true)">
+              <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               Lock Primary Reference (GNSS / DS3231 TCXO &rarr; Class 6)
             </button>
             <button class="btn amber" onclick="setApplianceLock(false)">
+              <svg class="ico" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
               Simulate Antenna Loss / Holdover Mode (TCXO Holdover &rarr; Class 7)
             </button>
           </div>
         </section>
 
         <section class="card">
-          <h2>Hardware PHC Devices &amp; Simultaneous Multicast Profiles</h2>
+          <h2>
+            <span class="card-title-left">
+              <svg class="ico" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>
+              Hardware PHC Devices &amp; Simultaneous Multicast Profiles
+            </span>
+          </h2>
           <table class="data-table">
             <tbody>
               <tr><th>Primary Studio PHC</th><td id="app-phc0">/dev/ptp0</td></tr>
@@ -853,154 +1271,356 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       </div>
     </div>
 
-    <!-- TAB 5: HELP, FUNDAMENTALS & GRAPHICAL GUIDE -->
-    <div id="tab-help" class="tab-pane help-article">
-      <section class="card" style="margin-bottom:16px;">
-        <h2>Visual Architecture &amp; End-to-End Signal Flow Diagram</h2>
-        <p>
-          The diagram below illustrates how <strong>Abu Clock</strong> locks hardware monotonic counters across PC, Mobile, LiDAR, Unreal Engine 5, and NVIDIA Omniverse to a single International Atomic Time (TAI) timeline:
-        </p>
-        <div style="background:#050811;border:1px solid var(--border);border-radius:10px;padding:14px;overflow-x:auto;">
-          <svg viewBox="0 0 1100 320" style="width:100%;min-width:780px;height:auto;display:block;">
-            <!-- Tier 1 Box -->
-            <rect x="20" y="30" width="240" height="260" rx="12" fill="#0d1527" stroke="#38bdf8" stroke-width="2"/>
-            <text x="40" y="60" fill="#38bdf8" font-size="15" font-weight="bold">TIER 1: CORE CLOCK ENGINE</text>
-            <rect x="38" y="80" width="204" height="52" rx="8" fill="#13203a" stroke="#263554"/>
-            <text x="50" y="102" fill="#f1f5f9" font-size="12" font-weight="bold">PlatformMonotonicClock</text>
-            <text x="50" y="120" fill="#94a3b8" font-size="11">Win QPC / Mach / MONOTONIC_RAW</text>
+    <!-- TAB 5: REDESIGNED INTERACTIVE HELP, VISUAL FUNDAMENTALS & DEVELOPER SDK HUB -->
+    <div id="tab-help" class="tab-pane">
+      <!-- Sub-navigation pills inside Help -->
+      <div class="help-subnav">
+        <button class="help-subbtn active" onclick="switchHelpSub('help-sub-tour', this)">
+          <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+          1. Interactive Visual Studio Tour (User Manual)
+        </button>
+        <button class="help-subbtn" onclick="switchHelpSub('help-sub-fundamentals', this)">
+          <svg class="ico" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          2. Core Engineering Fundamentals &amp; Diagrams
+        </button>
+        <button class="help-subbtn" onclick="switchHelpSub('help-sub-dev', this)">
+          <svg class="ico" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          3. Developer SDK &amp; Engine Integration Guide
+        </button>
+        <button class="help-subbtn" onclick="switchHelpSub('help-sub-check', this)">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          4. Studio Operator Checklist &amp; Troubleshooting
+        </button>
+      </div>
 
-            <rect x="38" y="148" width="204" height="56" rx="8" fill="#13203a" stroke="#10b981"/>
-            <text x="50" y="170" fill="#34d399" font-size="12" font-weight="bold">OverlayClock (Kalman PLL)</text>
-            <text x="50" y="188" fill="#94a3b8" font-size="11">State: [offset_ns &theta;, drift_ppb &alpha;]</text>
+      <!-- HELP SUB-TAB 1: INTERACTIVE VISUAL STUDIO TOUR -->
+      <div id="help-sub-tour" class="help-section active">
+        <section class="card" style="margin-bottom:16px;">
+          <h2>
+            <span class="card-title-left">
+              <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              Annotated Visual Map of the Abu Clock Studio Interface
+            </span>
+            <span class="badge info">Interactive UI Overview</span>
+          </h2>
+          <div style="background:#050811;border:1px solid var(--border);border-radius:10px;padding:14px;overflow-x:auto;">
+            <svg viewBox="0 0 1060 270" style="width:100%;min-width:760px;height:auto;display:block;">
+              <!-- Region 1: Top Slate -->
+              <rect x="15" y="12" width="1030" height="66" rx="10" fill="#0d1629" stroke="#38bdf8" stroke-width="2"/>
+              <circle cx="42" cy="45" r="14" fill="#38bdf8"/><text x="37" y="50" fill="#020617" font-size="14" font-weight="bold">1</text>
+              <text x="68" y="38" fill="#38bdf8" font-size="14" font-weight="bold">MASTER DIGITAL SLATE RIBBON (Always Visible)</text>
+              <text x="68" y="58" fill="#94a3b8" font-size="12">Displays live SMPTE ST 12-1 Timecode, 32-bit BCD word, Sub-Frame Phase (&phi;), TAI nanoseconds &amp; Frame-00 Optical Flash Beacon.</text>
 
-            <rect x="38" y="218" width="204" height="54" rx="8" fill="#13203a" stroke="#38bdf8"/>
-            <text x="50" y="240" fill="#38bdf8" font-size="12" font-weight="bold">SmpteTimecodeEngine</text>
-            <text x="50" y="258" fill="#94a3b8" font-size="11">ST 12-1 Drop-Frame + 32-bit BCD</text>
+              <!-- Region 2: Presets & Params -->
+              <rect x="15" y="92" width="505" height="80" rx="10" fill="#0d1629" stroke="#10b981" stroke-width="2"/>
+              <circle cx="42" cy="132" r="14" fill="#10b981"/><text x="37" y="137" fill="#020617" font-size="14" font-weight="bold">2</text>
+              <text x="68" y="122" fill="#34d399" font-size="13" font-weight="bold">TAB 1 LEFT: STUDIO PRESETS &amp; PARAMETER SETTINGS</text>
+              <text x="68" y="142" fill="#94a3b8" font-size="11">1-Click Presets (VP 24fps, Broadcast 29.97 DF, LiDAR 10Hz, UE5 60fps)</text>
+              <text x="68" y="158" fill="#94a3b8" font-size="11">+ Role, Profile, Domain, Priority 1/2, Phase Trim &amp; Lead Time.</text>
 
-            <!-- Arrow 1 -> 2 -->
-            <line x1="260" y1="160" x2="320" y2="160" stroke="#38bdf8" stroke-width="2.5"/>
-            <polygon points="320,160 310,154 310,166" fill="#38bdf8"/>
+              <!-- Region 3: Kalman Scope -->
+              <rect x="540" y="92" width="505" height="80" rx="10" fill="#0d1629" stroke="#f59e0b" stroke-width="2"/>
+              <circle cx="567" cy="132" r="14" fill="#f59e0b"/><text x="562" y="137" fill="#020617" font-size="14" font-weight="bold">3</text>
+              <text x="593" y="122" fill="#fbbf24" font-size="13" font-weight="bold">TAB 1 RIGHT: 2-STATE KALMAN PLL &amp; LIVE OSCILLOSCOPE</text>
+              <text x="593" y="142" fill="#94a3b8" font-size="11">8 Hz real-time phase offset trace (&theta; in ns), crystal drift (&alpha; in ppb),</text>
+              <text x="593" y="158" fill="#94a3b8" font-size="11">7.0s ST 2059 warm-up gate &amp; 1-click jitter/fault injection buttons.</text>
 
-            <!-- Tier 2 Box -->
-            <rect x="320" y="30" width="290" height="260" rx="12" fill="#0d1527" stroke="#a855f7" stroke-width="2"/>
-            <text x="340" y="60" fill="#c084fc" font-size="15" font-weight="bold">TIER 2: NETWORK &amp; TELEMETRY BUS</text>
-            <rect x="338" y="80" width="254" height="52" rx="8" fill="#13203a" stroke="#263554"/>
-            <text x="350" y="102" fill="#f1f5f9" font-size="12" font-weight="bold">DualModePtpEngine + ST 2059-2 TLV</text>
-            <text x="350" y="120" fill="#94a3b8" font-size="11">PTP (319/320) &bull; gPTP &bull; AbuSync (50319)</text>
+              <!-- Region 4, 5, 6 -->
+              <rect x="15" y="186" width="330" height="72" rx="10" fill="#0d1629" stroke="#a855f7" stroke-width="2"/>
+              <circle cx="42" cy="222" r="14" fill="#a855f7"/><text x="37" y="227" fill="#020617" font-size="14" font-weight="bold">4</text>
+              <text x="66" y="215" fill="#c084fc" font-size="13" font-weight="bold">TAB 2: PTP &amp; ST 2059-2 TLV</text>
+              <text x="66" y="235" fill="#94a3b8" font-size="11">BMCA Election Simulator &amp; 20B Hex Decoder</text>
 
-            <rect x="338" y="148" width="254" height="56" rx="8" fill="#13203a" stroke="#f59e0b"/>
-            <text x="350" y="170" fill="#fbbf24" font-size="12" font-weight="bold">AbuScanCoordinator (+50ms Barrier)</text>
-            <text x="350" y="188" fill="#94a3b8" font-size="11">SCHEDULE_CAPTURE_AT + 500&mu;s Spinlock</text>
+              <rect x="365" y="186" width="330" height="72" rx="10" fill="#0d1629" stroke="#38bdf8" stroke-width="2"/>
+              <circle cx="392" cy="222" r="14" fill="#38bdf8"/><text x="387" y="227" fill="#020617" font-size="14" font-weight="bold">5</text>
+              <text x="416" y="215" fill="#38bdf8" font-size="13" font-weight="bold">TAB 3: BARRIER &amp; TELEMETRY</text>
+              <text x="416" y="235" fill="#94a3b8" font-size="11">+50ms Trigger, FreeD/OTrk &amp; .abuscan.json</text>
 
-            <rect x="338" y="218" width="254" height="54" rx="8" fill="#13203a" stroke="#263554"/>
-            <text x="350" y="240" fill="#f1f5f9" font-size="12" font-weight="bold">OpenTrackIO (OTrk) &amp; FreeD (0xD1/D2)</text>
-            <text x="350" y="258" fill="#94a3b8" font-size="11">6-DoF Camera Pose + Exact Frame TAI</text>
-
-            <!-- Arrow 2 -> 3 -->
-            <line x1="610" y1="160" x2="670" y2="160" stroke="#a855f7" stroke-width="2.5"/>
-            <polygon points="670,160 660,154 660,166" fill="#a855f7"/>
-
-            <!-- Tier 3 Box -->
-            <rect x="670" y="30" width="410" height="260" rx="12" fill="#0d1527" stroke="#10b981" stroke-width="2"/>
-            <text x="690" y="60" fill="#34d399" font-size="15" font-weight="bold">TIER 3: UNIFIED APP, ENGINES &amp; APPLIANCE</text>
-            <rect x="690" y="80" width="178" height="85" rx="8" fill="#13203a" stroke="#38bdf8"/>
-            <text x="702" y="104" fill="#38bdf8" font-size="12" font-weight="bold">Abu Clock PC Studio</text>
-            <text x="702" y="124" fill="#94a3b8" font-size="11">&bull; 120Hz Digital Slate</text>
-            <text x="702" y="142" fill="#94a3b8" font-size="11">&bull; Live Control Center</text>
-
-            <rect x="882" y="80" width="178" height="85" rx="8" fill="#13203a" stroke="#10b981"/>
-            <text x="894" y="104" fill="#34d399" font-size="12" font-weight="bold">UE5 &amp; Omniverse</text>
-            <text x="894" y="124" fill="#94a3b8" font-size="11">&bull; UAbuClockTimecodeProvider</text>
-            <text x="894" y="142" fill="#94a3b8" font-size="11">&bull; omni.abu.clock C-ABI</text>
-
-            <rect x="690" y="180" width="178" height="90" rx="8" fill="#13203a" stroke="#f59e0b"/>
-            <text x="702" y="204" fill="#fbbf24" font-size="12" font-weight="bold">Abu-Track-Scan Rigs</text>
-            <text x="702" y="224" fill="#94a3b8" font-size="11">&bull; iOS Swift AbuClockKit</text>
-            <text x="702" y="242" fill="#94a3b8" font-size="11">&bull; Win C++ &amp; RoboSense LiDAR</text>
-
-            <rect x="882" y="180" width="178" height="90" rx="8" fill="#13203a" stroke="#a855f7"/>
-            <text x="894" y="204" fill="#c084fc" font-size="12" font-weight="bold">Pi CM4 Grandmaster</text>
-            <text x="894" y="224" fill="#94a3b8" font-size="11">&bull; DS3231 TCXO (&plusmn;2ppm)</text>
-            <text x="894" y="242" fill="#94a3b8" font-size="11">&bull; /dev/ptp0 &amp; /dev/ptp1</text>
-          </svg>
-        </div>
-      </section>
-
-      <div class="grid-2">
-        <section class="card">
-          <h2>Core Fundamentals: How Abu Clock Works</h2>
-          <p>
-            <strong>1. Why Standard OS Clocks Fail:</strong> Standard operating system wall clocks (<code>SystemTime</code> / <code>gettimeofday</code>) jump forward or backward whenever background NTP daemons step the clock, ruining multi-camera shutter alignment and 3D Gaussian Splatting (3DGS) reconstruction.
-            <strong>Abu Clock</strong> never mutates the OS clock. Instead, it reads the CPU/OS hardware monotonic counter (<code>QueryPerformanceCounter</code> on Windows, <code>mach_continuous_time</code> on iOS/macOS, <code>CLOCK_MONOTONIC_RAW</code> on Linux) and maintains a lock-free user-space <strong>OverlayClock</strong>:
-          </p>
-          <pre class="code-box">T_TAI(t) = T_anchor + (C_mono(t) - C_mono(t0)) * (1 + alpha_freq) + theta_phase</pre>
-          <p>
-            <strong>2. 2-State Kalman PLL &amp; 7.0-Second Warm-Up Gate:</strong> Network packets experience queuing jitter. The <code>ClockKalmanFilter</code> estimates both instantaneous phase offset ($\theta_{\text{phase}}$ in ns) and crystal frequency drift ($\alpha_{\text{freq}}$ in ppb). Per <strong>SMPTE ST 2059-2</strong>, the node enforces a mandatory <strong>7.0-second warm-up convergence gate</strong> before transitioning its status badge to <code>LOCKED</code> (&lt; 100 ns wired, &lt; 500 &mu;s wireless).
-          </p>
-          <p>
-            <strong>3. TAI vs. UTC &amp; Rational Drop-Frame SMPTE Math:</strong> Broadcast PTP operates on <strong>International Atomic Time (TAI)</strong>, which is monotonic and has zero leap-second discontinuities (currently <code>TAI = UTC + 37 seconds</code>). For NTSC fractional rates (<code>29.97 DF = 30000/1001</code>), frame numbers <code>00</code> and <code>01</code> are skipped at the start of every minute except every 10th minute (<code>17,982</code> frames per 10-minute block) using exact 128-bit integer arithmetic with zero floating-point drift.
-          </p>
-          <p>
-            <strong>4. Future-Time Barrier Triggering (<code>SCHEDULE_CAPTURE_AT</code>):</strong> Wi-Fi and LAN packets take variable time (`0.3 ms` to `15 ms`) to arrive. Abu Clock eliminates network trigger jitter by broadcasting a future target timestamp ($T_{\text{exec}} = T_{\text{now}} + 50\text{ ms}$). Every device sleeps until $T_{\text{exec}} - 500\ \mu\text{s}$ and then enters a tight hardware register spinlock to fire the shutter at the exact nanosecond.
-          </p>
-        </section>
-
-        <section class="card">
-          <h2>Graphical Step-by-Step Guide: How to Use This App</h2>
-          <div style="background:#050811;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;">
-            <svg viewBox="0 0 560 210" style="width:100%;height:auto;display:block;">
-              <!-- Visual Callout Map of the UI -->
-              <rect x="10" y="10" width="540" height="45" rx="7" fill="#0f172a" stroke="#38bdf8"/>
-              <circle cx="30" cy="32" r="11" fill="#38bdf8"/><text x="26" y="36" fill="#020617" font-size="12" font-weight="bold">1</text>
-              <text x="50" y="36" fill="#f1f5f9" font-size="12" font-weight="bold">Master Digital Slate Banner (Top): Live SMPTE TC, BCD Hex, Phase &amp; Frame-00 Flash</text>
-
-              <rect x="10" y="65" width="262" height="62" rx="7" fill="#0f172a" stroke="#10b981"/>
-              <circle cx="30" cy="96" r="11" fill="#10b981"/><text x="26" y="100" fill="#020617" font-size="12" font-weight="bold">2</text>
-              <text x="48" y="90" fill="#34d399" font-size="11" font-weight="bold">Tab 1 Left: Parameter Settings</text>
-              <text x="48" y="108" fill="#94a3b8" font-size="10">Set Role, Profile, FPS, Domain &amp; Apply</text>
-
-              <rect x="288" y="65" width="262" height="62" rx="7" fill="#0f172a" stroke="#f59e0b"/>
-              <circle cx="308" cy="96" r="11" fill="#f59e0b"/><text x="304" y="100" fill="#020617" font-size="12" font-weight="bold">3</text>
-              <text x="326" y="90" fill="#fbbf24" font-size="11" font-weight="bold">Tab 1 Right: Kalman PLL Test Bench</text>
-              <text x="326" y="108" fill="#94a3b8" font-size="10">Inject Jitter, Fast-Forward 7s &amp; View Scope</text>
-
-              <rect x="10" y="138" width="172" height="62" rx="7" fill="#0f172a" stroke="#a855f7"/>
-              <circle cx="28" cy="168" r="11" fill="#a855f7"/><text x="24" y="172" fill="#020617" font-size="12" font-weight="bold">4</text>
-              <text x="44" y="164" fill="#c084fc" font-size="11" font-weight="bold">Tab 2: PTP &amp; TLV</text>
-              <text x="44" y="180" fill="#94a3b8" font-size="10">BMCA &amp; 20B Hex Dump</text>
-
-              <rect x="194" y="138" width="172" height="62" rx="7" fill="#0f172a" stroke="#38bdf8"/>
-              <circle cx="212" cy="168" r="11" fill="#38bdf8"/><text x="208" y="172" fill="#020617" font-size="12" font-weight="bold">5</text>
-              <text x="228" y="164" fill="#38bdf8" font-size="11" font-weight="bold">Tab 3: Trigger &amp; Pose</text>
-              <text x="228" y="180" fill="#94a3b8" font-size="10">+50ms Barrier &amp; FreeD</text>
-
-              <rect x="378" y="138" width="172" height="62" rx="7" fill="#0f172a" stroke="#10b981"/>
-              <circle cx="396" cy="168" r="11" fill="#10b981"/><text x="392" y="172" fill="#020617" font-size="12" font-weight="bold">6</text>
-              <text x="412" y="164" fill="#34d399" font-size="11" font-weight="bold">Tab 4: Appliance</text>
-              <text x="412" y="180" fill="#94a3b8" font-size="10">Pi CM4 + TCXO Class 6/7</text>
+              <rect x="715" y="186" width="330" height="72" rx="10" fill="#0d1629" stroke="#10b981" stroke-width="2"/>
+              <circle cx="742" cy="222" r="14" fill="#10b981"/><text x="737" y="227" fill="#020617" font-size="14" font-weight="bold">6</text>
+              <text x="766" y="215" fill="#34d399" font-size="13" font-weight="bold">TAB 4: HARDWARE APPLIANCE</text>
+              <text x="766" y="235" fill="#94a3b8" font-size="11">Pi CM4 + DS3231 TCXO Class 6/7 Monitor</text>
             </svg>
           </div>
-          <ol style="padding-left:18px;margin:0;">
-            <li>
-              <span class="step-badge">1</span><strong>Monitor the Master Digital Slate (Top Ribbon):</strong> Watch the real-time SMPTE timecode, 32-bit BCD word, sub-frame phase bar, and Frame-00 optical flash beacon driven directly by the Rust <code>SmpteTimecodeEngine</code>.
-            </li>
-            <li>
-              <span class="step-badge">2</span><strong>Configure Timing Parameters (Tab 1 Left):</strong> Choose your Operating Role (<code>AutoBmca</code>, <code>Master</code>, <code>Follower</code>), Synchronization Profile, and Frame Rate (e.g. <code>29.97 DF</code>, <code>24 fps</code>, <code>60 fps</code>, or <code>10 Hz LiDAR</code>), then click <strong>Apply Settings to Rust Engine</strong>.
-            </li>
-            <li>
-              <span class="step-badge">3</span><strong>Test Kalman Clock Steering &amp; Fault Recovery (Tab 1 Right):</strong> Click <strong>Inject +50 &mu;s Phase Disturbance</strong> or <strong>Simulate Unlock Fault</strong> to perturb the clock, then click <strong>Fast-Forward 7.0s ST 2059 Warm-Up</strong> to watch the Kalman oscilloscope converge back to <code>LOCKED (&lt;100 ns)</code>.
-            </li>
-            <li>
-              <span class="step-badge">4</span><strong>Inspect PTP &amp; Run BMCA Elections (Tab 2):</strong> Inspect the live 20-byte big-endian <code>SMPTETLV</code> wire bytes and inject a remote Grandmaster <code>Announce</code> packet to verify automatic follower failover and frame-rate adoption.
-            </li>
-            <li>
-              <span class="step-badge">5</span><strong>Fire Multi-Sensor Captures &amp; Camera Telemetry (Tab 3):</strong> Click <strong>Fire SCHEDULE_CAPTURE_AT</strong> to verify sub-50&mu;s multi-rig receipts, adjust 6-DoF camera pose sliders to inspect live <strong>FreeD (0xD1/0xD2)</strong> and <strong>OpenTrackIO</strong> packets, and export <code>.abuscan.json</code> / Colmap <code>images.txt</code> manifests.
-            </li>
-            <li>
-              <span class="step-badge">6</span><strong>Test Grandmaster Appliance Holdover (Tab 4):</strong> Toggle between GNSS/TCXO Locked (<code>Class 6</code>) and Holdover (<code>Class 7</code>) on the Phase 3 hardware Grandmaster monitor.
-            </li>
-          </ol>
         </section>
+
+        <!-- 6 Interactive Step Cards with "Try It Now" Jump Buttons -->
+        <div class="grid-3">
+          <div class="tour-step-card">
+            <div>
+              <div class="tour-step-hdr">
+                <span class="step-num">1</span>
+                <span>Read the Master Digital Slate</span>
+              </div>
+              <p class="tour-step-body">
+                The top banner runs continuously regardless of which tab is open. Notice the semicolon <code>;</code> in <code>HH:MM:SS;FF.sf</code> when Drop-Frame is active vs. colon <code>:</code> for Non-Drop-Frame, and watch the <strong>FRAME 00 FLASH</strong> beacon pulse white at the start of every second.
+              </p>
+            </div>
+            <button class="btn sm primary" onclick="document.getElementById('nav-tab-dashboard').click()">
+              View Slate &amp; Dashboard &rarr;
+            </button>
+          </div>
+
+          <div class="tour-step-card">
+            <div>
+              <div class="tour-step-hdr">
+                <span class="step-num">2</span>
+                <span>Apply a 1-Click Studio Preset</span>
+              </div>
+              <p class="tour-step-body">
+                In <strong>Tab 1</strong>, click any of the 5 Studio Preset chips (e.g. <em>Virtual Production 24 fps</em> or <em>RoboSense LiDAR 10 Hz</em>) or customize Role, Profile, Domain, and Frame Rate manually and click <strong>Apply Settings to Rust Engine</strong>.
+              </p>
+            </div>
+            <button class="btn sm emerald" onclick="document.getElementById('nav-tab-dashboard').click(); applyStudioPreset('Master','SmpteSt2059_2',1,64,128,'24,1,false',false,'Virtual Production (24 fps Cinema + ST 2059-2 GM)')">
+              Try 24 fps Cinema Preset Live &rarr;
+            </button>
+          </div>
+
+          <div class="tour-step-card">
+            <div>
+              <div class="tour-step-hdr">
+                <span class="step-num">3</span>
+                <span>Perturb &amp; Lock the Kalman Servo</span>
+              </div>
+              <p class="tour-step-body">
+                In <strong>Tab 1 Right</strong>, inject a <code>+50 &mu;s Disturbance</code> or <code>Unlock Fault</code> to see how the 2-state Kalman PLL reacts on the live SVG oscilloscope, then click <strong>Fast-Forward 7.0s Warm-Up</strong> to re-lock below <code>100 ns</code>.
+              </p>
+            </div>
+            <button class="btn sm amber" onclick="document.getElementById('nav-tab-dashboard').click(); clockAction('step_50us', 'Injected +50 µs Disturbance')">
+              Inject +50 &mu;s Disturbance Now &rarr;
+            </button>
+          </div>
+
+          <div class="tour-step-card">
+            <div>
+              <div class="tour-step-hdr">
+                <span class="step-num">4</span>
+                <span>Run BMCA Election &amp; Inspect TLV</span>
+              </div>
+              <p class="tour-step-body">
+                In <strong>Tab 2</strong>, inspect the live 20-byte big-endian <code>SmpteSyncMetadataTlv</code> hex packet (`00 03 00 10 00 0E 9B...`) and simulate a remote Grandmaster <code>Announce</code> to verify automatic slave failover.
+              </p>
+            </div>
+            <button class="btn sm primary" onclick="document.getElementById('nav-tab-ptp').click()">
+              Open PTP &amp; TLV Inspector &rarr;
+            </button>
+          </div>
+
+          <div class="tour-step-card">
+            <div>
+              <div class="tour-step-hdr">
+                <span class="step-num">5</span>
+                <span>Fire +50ms Multi-Rig Barrier Capture</span>
+              </div>
+              <p class="tour-step-body">
+                In <strong>Tab 3</strong>, click <strong>Fire SCHEDULE_CAPTURE_AT</strong> to schedule a deterministic multi-sensor capture across iOS, Windows, LiDAR, and UE5 rigs, and synthesize <strong>FreeD (`0xD1`/`0xD2`)</strong> &amp; <strong>OpenTrackIO</strong> packets.
+              </p>
+            </div>
+            <button class="btn sm emerald" onclick="document.getElementById('nav-tab-trigger').click(); fireTrigger('single', 1)">
+              Fire +50ms Barrier Capture Now &rarr;
+            </button>
+          </div>
+
+          <div class="tour-step-card">
+            <div>
+              <div class="tour-step-hdr">
+                <span class="step-num">6</span>
+                <span>Test Hardware Appliance Holdover</span>
+              </div>
+              <p class="tour-step-body">
+                In <strong>Tab 4</strong>, monitor the Raspberry Pi CM4 + Maxim DS3231 TCXO + Intel I210-T1 PHC Grandmaster appliance and test switching between <code>Class 6 (Locked)</code> and <code>Class 7 (Holdover)</code>.
+              </p>
+            </div>
+            <button class="btn sm primary" onclick="document.getElementById('nav-tab-appliance').click()">
+              Open Appliance Monitor &rarr;
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- HELP SUB-TAB 2: CORE ENGINEERING FUNDAMENTALS & VISUAL DIAGRAMS -->
+      <div id="help-sub-fundamentals" class="help-section">
+        <div class="grid-2">
+          <!-- DiagramCard A: Barrier Trigger Timeline Comparison -->
+          <section class="card">
+            <h2>
+              <span class="card-title-left">
+                <svg class="ico" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Why Future-Time Barrier Triggering Eliminates Network Jitter
+              </span>
+            </h2>
+            <p style="font-size:0.82rem;color:#cbd5e1;line-height:1.55;">
+              Wi-Fi and Ethernet switches introduce variable packet transit delay (`0.3 ms` to `15 ms`).
+              Instead of broadcasting "capture now", <code>AbuScanCoordinator</code> broadcasts <code>ScheduleCaptureAt(T_now + 50ms)</code> so every node counts down against its local disciplined <code>OverlayClock</code>:
+            </p>
+            <div style="background:#050811;border:1px solid var(--border);border-radius:10px;padding:12px;">
+              <svg viewBox="0 0 540 220" style="width:100%;height:auto;display:block;">
+                <!-- Naive Trigger -->
+                <text x="12" y="22" fill="#fb7185" font-size="12" font-weight="bold">&#10060; Naive "Capture Now" UDP Broadcast (15 ms Shutter Skew):</text>
+                <line x1="20" y1="45" x2="520" y2="45" stroke="#334155" stroke-width="2"/>
+                <circle cx="40" cy="45" r="5" fill="#38bdf8"/>
+                <text x="25" y="64" fill="#94a3b8" font-size="10">Master TX</text>
+                <circle cx="150" cy="45" r="6" fill="#fb7185"/>
+                <text x="120" y="34" fill="#fb7185" font-size="10">LAN Cam (+0.4ms)</text>
+                <circle cx="390" cy="45" r="6" fill="#fb7185"/>
+                <text x="340" y="34" fill="#fb7185" font-size="10">Wi-Fi iPhone (+14.2ms MISMATCH!)</text>
+
+                <!-- Abu Clock Barrier Trigger -->
+                <text x="12" y="112" fill="#34d399" font-size="12" font-weight="bold">&#9989; Abu Clock SCHEDULE_CAPTURE_AT (T_exec = T_now + 50ms):</text>
+                <line x1="20" y1="155" x2="520" y2="155" stroke="#334155" stroke-width="2"/>
+                <circle cx="40" cy="155" r="5" fill="#38bdf8"/>
+                <text x="22" y="175" fill="#94a3b8" font-size="10">T_now</text>
+
+                <!-- Arrival markers -->
+                <path d="M40 155 Q95 125 140 155" fill="none" stroke="#38bdf8" stroke-dasharray="3 3"/>
+                <path d="M40 155 Q170 115 290 155" fill="none" stroke="#f59e0b" stroke-dasharray="3 3"/>
+                <text x="145" y="145" fill="#94a3b8" font-size="9">Coarse Sleep &rarr; 500&mu;s QPC Spinlock</text>
+
+                <!-- Exact Barrier Line -->
+                <line x1="450" y1="120" x2="450" y2="195" stroke="#10b981" stroke-width="3"/>
+                <circle cx="450" cy="145" r="6" fill="#34d399"/>
+                <circle cx="450" cy="165" r="6" fill="#34d399"/>
+                <text x="335" y="208" fill="#34d399" font-size="11" font-weight="bold">ALL RIGS FIRE AT T_exec (&lt; 50 &mu;s spread)</text>
+              </svg>
+            </div>
+          </section>
+
+          <!-- DiagramCard B: Kalman PLL & 7s Gate -->
+          <section class="card">
+            <h2>
+              <span class="card-title-left">
+                <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                User-Space OverlayClock &amp; 2-State Kalman PLL Equation
+              </span>
+            </h2>
+            <p style="font-size:0.82rem;color:#cbd5e1;line-height:1.55;">
+              <code>OverlayClock</code> never steps your OS kernel clock. It wraps the hardware monotonic counter
+              (<code>QueryPerformanceCounter</code> / <code>mach_continuous_time</code> / <code>CLOCK_MONOTONIC_RAW</code>)
+              using lock-free atomic sequence locking:
+            </p>
+            <pre class="code-box" style="color:#34d399;font-size:0.82rem;">T_TAI(t) = T_anchor + (C_mono(t) - C_mono(t0)) * (1 + alpha_freq) + theta_phase</pre>
+            <div style="background:#050811;border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:10px;">
+              <svg viewBox="0 0 540 135" style="width:100%;height:auto;display:block;">
+                <rect x="10" y="35" width="110" height="55" rx="8" fill="#1e1b2e" stroke="#f43f5e"/>
+                <text x="26" y="60" fill="#fb7185" font-size="11" font-weight="bold">UNLOCKED</text>
+                <text x="22" y="76" fill="#94a3b8" font-size="9">Offset &gt; Threshold</text>
+
+                <line x1="120" y1="62" x2="155" y2="62" stroke="#94a3b8" stroke-width="2"/>
+                <rect x="155" y="35" width="135" height="55" rx="8" fill="#231f10" stroke="#f59e0b"/>
+                <text x="172" y="60" fill="#fbbf24" font-size="11" font-weight="bold">WARMING UP</text>
+                <text x="168" y="76" fill="#94a3b8" font-size="9">0.0s .. 7.0s ST 2059 Gate</text>
+
+                <line x1="290" y1="62" x2="325" y2="62" stroke="#10b981" stroke-width="2"/>
+                <rect x="325" y="35" width="105" height="55" rx="8" fill="#0c241d" stroke="#10b981"/>
+                <text x="352" y="60" fill="#34d399" font-size="11" font-weight="bold">LOCKED</text>
+                <text x="336" y="76" fill="#94a3b8" font-size="9">&lt;100ns (Wired)</text>
+
+                <line x1="430" y1="62" x2="455" y2="62" stroke="#a855f7" stroke-width="2"/>
+                <rect x="455" y="35" width="78" height="55" rx="8" fill="#1f1433" stroke="#a855f7"/>
+                <text x="462" y="60" fill="#c084fc" font-size="10" font-weight="bold">HOLDOVER</text>
+                <text x="462" y="76" fill="#94a3b8" font-size="8">Drift &alpha; Held</text>
+              </svg>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- HELP SUB-TAB 3: DEVELOPER SDK & INTEGRATION HUB -->
+      <div id="help-sub-dev" class="help-section">
+        <div class="grid-2">
+          <section class="card">
+            <h2>
+              <span class="card-title-left">
+                <svg class="ico" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                C / C++17 &amp; Python / Omniverse FFI Integration
+              </span>
+              <span class="badge info">target/release/abuclock.dll</span>
+            </h2>
+            <p style="font-size:0.81rem;color:#cbd5e1;margin-top:0;">
+              Link against <code>crates/abu-ffi/include/abu_clock.h</code> or use the C++17 RAII wrapper in
+              <code>integrations/abu-track-scan/windows/AbuClockWinClient.hpp</code>:
+            </p>
+            <pre class="code-box">// C / C++17 Zero-Overhead FFI Example
+#include "abu_clock.h"
+
+AbuClockOpaqueHandle* clk = abu_clock_create(1729180800000000000ULL, 30000, 1001, true);
+AbuClockCFrameSnapshot snap;
+if (abu_clock_synthesize_now(clk, &amp;snap)) {
+    // snap.bcd_timecode (32-bit BCD), snap.tai_ns, snap.phase
+}
+uint8_t freed_d1[29];
+abu_clock_pack_freed_d1(clk, &amp;pose, freed_d1);
+abu_clock_destroy(clk);</pre>
+
+            <h3>Python &amp; NVIDIA Omniverse Extension (<code>omni.abu.clock</code>)</h3>
+            <pre class="code-box">from abu_clock import AbuClockClient
+client = AbuClockClient("target/release/abuclock.dll")
+client.tick_network(offset_ns=12.0, delay_ns=380.0)
+print("Live SMPTE:", client.now_smpte(), "| Locked:", client.status())</pre>
+          </section>
+
+          <section class="card">
+            <h2>
+              <span class="card-title-left">
+                <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+                Local HTTP JSON Control API (<code>127.0.0.1:7878</code>)
+              </span>
+              <span class="badge Locked">CORS Enabled</span>
+            </h2>
+            <p style="font-size:0.81rem;color:#cbd5e1;margin-top:0;">
+              External scripts, StreamDeck buttons, or studio automation tools can query and control the running <strong>Abu Clock</strong> PC application via REST JSON:
+            </p>
+            <table class="data-table">
+              <thead>
+                <tr><th>Endpoint</th><th>Method</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>/api/state</code></td><td>GET</td><td>Full snapshot of Clock, SMPTE, PTP TLV, Receipts &amp; Manifests</td></tr>
+                <tr><td><code>/api/config</code></td><td>POST</td><td>Update Role, Profile, Domain, FrameRate, Trim &amp; Lead Time</td></tr>
+                <tr><td><code>/api/clock</code></td><td>POST</td><td>Inject PTP samples, fast-forward 7s gate, or toggle 8Hz auto-sync</td></tr>
+                <tr><td><code>/api/bmca</code></td><td>POST</td><td>Inject remote Announce frame &amp; trigger IEEE 1588 BMCA election</td></tr>
+                <tr><td><code>/api/trigger</code></td><td>POST</td><td>Broadcast <code>SCHEDULE_CAPTURE_AT</code> single or burst trigger</td></tr>
+                <tr><td><code>/api/telemetry</code></td><td>POST</td><td>Update 6-DoF camera pose &amp; synthesize OpenTrackIO / FreeD</td></tr>
+                <tr><td><code>/api/manifest</code></td><td>POST</td><td>Append synchronized sensor record to <code>.abuscan.json</code></td></tr>
+              </tbody>
+            </table>
+            <h3>Repository Documentation Files</h3>
+            <pre class="code-box">docs/USER_MANUAL.md              # Complete Studio Operator Manual
+docs/DEVELOPER_GUIDE.md          # Complete Developer &amp; SDK Integration Guide
+docs/ABU_CLOCK_USER_GUIDE.md     # Fundamentals &amp; Visual Architecture Reference
+docs/RUNNING_AND_TESTING_GUIDE.md# CLI &amp; Test Verification Commands</pre>
+          </section>
+        </div>
+      </div>
+
+      <!-- HELP SUB-TAB 4: OPERATOR CHECKLIST & TROUBLESHOOTING -->
+      <div id="help-sub-check" class="help-section">
+        <div class="grid-2">
+          <section class="card">
+            <h2>Studio Pre-Shoot Synchronization Checklist</h2>
+            <table class="data-table">
+              <thead>
+                <tr><th>Step</th><th>Check Item</th><th>Target / Expected Value</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>1</td><td>Verify Oscillator Backend</td><td><code>Windows::QueryPerformanceCounter</code> or <code>CLOCK_MONOTONIC_RAW</code></td></tr>
+                <tr><td>2</td><td>Confirm 7.0s ST 2059 Warm-Up</td><td>Top-right badge shows green <code>LOCKED</code> (100%)</td></tr>
+                <tr><td>3</td><td>Verify Frame Rate &amp; DF Flag</td><td>Matches camera project rate (e.g. <code>29.97 DF</code> uses <code>;</code>)</td></tr>
+                <tr><td>4</td><td>Check Phase Offset (&theta;)</td><td><code>&lt; 100 ns</code> on Wired LAN / <code>&lt; 500 &mu;s</code> on Wi-Fi</td></tr>
+                <tr><td>5</td><td>Fire Test Barrier Capture</td><td>All sensor receipts in Tab 3 show green jitter within budget</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="card">
+            <h2>Common Troubleshooting Solutions</h2>
+            <ul style="font-size:0.83rem;color:#cbd5e1;line-height:1.65;padding-left:18px;margin:0;">
+              <li><strong>Privileged PTP Ports (319/320) Blocked on Windows/macOS:</strong> Use the default <code>AbuSync Unprivileged CSPTP (UDP 50319/50320)</code> profile — it requires zero Administrator/root privileges and automatically binds via <code>TimestampedUdpSocket::bind_dual_mode</code>.</li>
+              <li><strong>Clock Status Stuck in <code>WARMING UP</code> or <code>UNLOCKED</code>:</strong> Ensure <code>8 Hz Auto-Sync Stream</code> is enabled in Tab 1 or click <strong>Fast-Forward 7.0s Warm-Up</strong> to complete the mandatory SMPTE ST 2059-2 7-second convergence window.</li>
+              <li><strong>Timecode Drift Against External NLE / Audio Recorder:</strong> Check whether your NLE timeline is Drop-Frame (<code>29.97 DF</code>, semicolon <code>;</code>) vs. Non-Drop-Frame (<code>29.97 NDF</code>, colon <code>:</code>).</li>
+            </ul>
+          </section>
+        </div>
       </div>
     </div>
   </div>
@@ -1008,6 +1628,23 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
   <script>
     const API_BASE = "http://127.0.0.1:7878";
     let formInitialized = false;
+    let toastTimer = null;
+
+    function showToast(msg) {
+      const banner = document.getElementById('toast-banner');
+      document.getElementById('toast-text').textContent = msg;
+      banner.classList.add('show');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => banner.classList.remove('show'), 2600);
+    }
+
+    function copyElementText(elId, msg) {
+      const text = document.getElementById(elId).textContent || '';
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text);
+      }
+      showToast(msg || 'Copied to clipboard');
+    }
 
     function switchTab(tabId, btnEl) {
       document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
@@ -1016,19 +1653,71 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       btnEl.classList.add('active');
     }
 
+    function switchHelpSub(subId, btnEl) {
+      document.querySelectorAll('.help-section').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.help-subbtn').forEach(el => el.classList.remove('active'));
+      document.getElementById(subId).classList.add('active');
+      btnEl.classList.add('active');
+    }
+
+    function syncFormFields(snap) {
+      const activeEl = document.activeElement;
+      const isEditingForm = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
+      if (isEditingForm && formInitialized) return;
+
+      document.getElementById('cfg-role').value = snap.role;
+      document.getElementById('cfg-profile').value = snap.profile;
+      document.getElementById('cfg-domain').value = snap.ptp_domain;
+      document.getElementById('cfg-prio1').value = snap.priority1;
+      document.getElementById('cfg-prio2').value = snap.priority2;
+      document.getElementById('cfg-offset-ns').value = snap.user_offset_ns;
+      document.getElementById('cfg-lead-ms').value = snap.trigger_lead_time_ms;
+      document.getElementById('cfg-wireless').value = String(snap.convergence.is_wireless);
+      document.getElementById('cfg-wakelock').value = String(snap.keep_screen_on_active);
+
+      const fpsKey = `${snap.frame_rate_num},${snap.frame_rate_den},${snap.drop_frame}`;
+      const fpsSelect = document.getElementById('cfg-fps');
+      if ([...fpsSelect.options].some(o => o.value === fpsKey)) {
+        fpsSelect.value = fpsKey;
+      }
+      formInitialized = true;
+    }
+
     function renderSnapshot(snap) {
       if (!snap || !snap.version) return;
+
+      // Update top white native window title bar with version number
+      const expectedTitle = `Abu Clock ${snap.version} — Precision Master Clock, Timecode & Sync Studio`;
+      if (document.title !== expectedTitle) {
+        document.title = expectedTitle;
+      }
+
       document.getElementById('hdr-version').textContent = snap.version;
       document.getElementById('hdr-backend').textContent = snap.monotonic_backend;
+      if (snap.udp_socket) {
+        document.getElementById('hdr-udp').textContent =
+          `${snap.udp_socket.bound_addr} (TX: ${snap.udp_socket.tx_packets} / RX: ${snap.udp_socket.rx_packets})`;
+      }
 
       // Badges
       const lockBadge = document.getElementById('badge-lock');
-      lockBadge.textContent = snap.convergence.lock_state.toUpperCase();
+      document.getElementById('badge-lock-text').textContent = snap.convergence.lock_state.toUpperCase();
       lockBadge.className = 'badge ' + snap.convergence.lock_state;
 
-      document.getElementById('badge-port').textContent = 'PORT: ' + String(snap.ptp_port_state).toUpperCase();
-      document.getElementById('badge-transport').textContent = snap.convergence.is_wireless ? 'WIRELESS Wi-Fi' : 'WIRED LAN';
-      document.getElementById('badge-wakelock').textContent = snap.keep_screen_on_active ? 'WAKE-LOCK ON' : 'WAKE-LOCK OFF';
+      document.getElementById('badge-port-text').textContent = 'PORT: ' + String(snap.ptp_port_state).toUpperCase();
+      document.getElementById('badge-transport-text').textContent = snap.convergence.is_wireless ? 'WIRELESS Wi-Fi' : 'WIRED LAN';
+      document.getElementById('badge-wakelock-text').textContent = snap.keep_screen_on_active ? 'WAKE-LOCK ON' : 'WAKE-LOCK OFF';
+
+      // Auto-sync button indicator
+      const autoBtn = document.getElementById('btn-autosync');
+      const autoTxt = document.getElementById('btn-autosync-text');
+      if (snap.auto_sync_enabled) {
+        autoTxt.textContent = '8 Hz Auto-Sync Stream: ON';
+        autoBtn.className = 'btn emerald';
+      } else {
+        autoTxt.textContent = '8 Hz Auto-Sync Stream: PAUSED';
+        autoBtn.className = 'btn amber';
+      }
 
       // Master Digital Slate
       document.getElementById('slate-tc').textContent = snap.slate_timecode;
@@ -1049,19 +1738,7 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
         beacon.classList.remove('active');
       }
 
-      // Initialize form inputs once
-      if (!formInitialized) {
-        document.getElementById('cfg-role').value = snap.role;
-        document.getElementById('cfg-profile').value = snap.profile;
-        document.getElementById('cfg-domain').value = snap.ptp_domain;
-        document.getElementById('cfg-prio1').value = snap.priority1;
-        document.getElementById('cfg-prio2').value = snap.priority2;
-        document.getElementById('cfg-offset-ns').value = snap.user_offset_ns;
-        document.getElementById('cfg-lead-ms').value = snap.trigger_lead_time_ms;
-        document.getElementById('cfg-wireless').value = String(snap.convergence.is_wireless);
-        document.getElementById('cfg-wakelock').value = String(snap.keep_screen_on_active);
-        formInitialized = true;
-      }
+      syncFormFields(snap);
 
       // Kalman KPIs
       document.getElementById('kpi-offset').textContent = snap.convergence.offset_ns + ' ns';
@@ -1070,17 +1747,17 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       document.getElementById('kpi-var').textContent = snap.convergence.offset_variance_ns2.toFixed(1) + ' ns²';
 
       const gateLabel = document.getElementById('kalman-gate-label');
-      gateLabel.textContent = '7.0s WARM-UP: ' + (snap.convergence.warmup_progress * 100).toFixed(0) + '%';
+      gateLabel.textContent = '7.0S WARM-UP: ' + (snap.convergence.warmup_progress * 100).toFixed(0) + '%';
       gateLabel.className = 'badge ' + snap.convergence.lock_state;
 
       // Oscilloscope polyline
       const hist = snap.offset_history_ns || [];
       if (hist.length > 0) {
         document.getElementById('osc-latest-text').textContent = 'Latest: ' + hist[hist.length - 1] + ' ns';
-        const maxAbs = Math.max(100, ...hist.map(v => Math.abs(v)));
+        const maxAbs = Math.max(40, ...hist.map(v => Math.abs(v)));
         const pts = hist.map((val, idx) => {
           const x = (idx / Math.max(1, hist.length - 1)) * 600;
-          const y = 65 - (val / maxAbs) * 52;
+          const y = 65 - (val / maxAbs) * 50;
           return `${x.toFixed(1)},${y.toFixed(1)}`;
         }).join(' ');
         document.getElementById('osc-line').setAttribute('points', pts);
@@ -1112,7 +1789,7 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
           <tr>
             <td><strong>${r.sensor_id}</strong></td>
             <td>${r.platform}</td>
-            <td style="color:${r.within_subframe_budget ? '#34d399' : '#fb7185'}">${r.jitter_ns >= 0 ? '+' : ''}${r.jitter_ns} ns</td>
+            <td style="color:${r.within_subframe_budget ? '#34d399' : '#fb7185'};font-weight:700;">${r.jitter_ns >= 0 ? '+' : ''}${r.jitter_ns} ns</td>
             <td><code>${r.filename}</code></td>
           </tr>
         `).join('');
@@ -1164,7 +1841,7 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       } catch (e) {}
     }
 
-    async function postApi(path, payload) {
+    async function postApi(path, payload, toastMsg) {
       try {
         const res = await fetch(API_BASE + path, {
           method: 'POST',
@@ -1172,7 +1849,9 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
           body: JSON.stringify(payload)
         });
         const snap = await res.json();
+        formInitialized = false;
         renderSnapshot(snap);
+        if (toastMsg) showToast(toastMsg);
       } catch (e) {}
     }
 
@@ -1190,12 +1869,32 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
         user_offset_ns: Number(document.getElementById('cfg-offset-ns').value),
         trigger_lead_time_ms: Number(document.getElementById('cfg-lead-ms').value),
         is_wireless: document.getElementById('cfg-wireless').value === 'true',
-        keep_screen_on_active: document.getElementById('cfg-wakelock').value === 'true'
-      });
+        keep_screen_on_active: document.getElementById('cfg-wakelock').value === 'true',
+        auto_sync_enabled: true
+      }, 'Applied timing & profile configuration to Rust engine');
     }
 
-    function clockAction(action) {
-      postApi('/api/clock', { action });
+    function applyStudioPreset(role, profile, domain, prio1, prio2, fpsStr, wireless, label) {
+      const fpsParts = fpsStr.split(',');
+      postApi('/api/config', {
+        role,
+        profile,
+        ptp_domain: domain,
+        priority1: prio1,
+        priority2: prio2,
+        fps_num: Number(fpsParts[0]),
+        fps_den: Number(fpsParts[1]),
+        drop_frame: fpsParts[2] === 'true',
+        user_offset_ns: 0,
+        trigger_lead_time_ms: 50,
+        is_wireless: wireless,
+        keep_screen_on_active: true,
+        auto_sync_enabled: true
+      }, 'Loaded Preset: ' + label);
+    }
+
+    function clockAction(action, toastMsg) {
+      postApi('/api/clock', { action }, toastMsg);
     }
 
     function runBmcaTest() {
@@ -1207,11 +1906,12 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
         remote_fps_num: Number(fpsParts[0]),
         remote_fps_den: Number(fpsParts[1]),
         remote_drop_frame: fpsParts[2] === 'true'
-      });
+      }, 'Executed IEEE 1588-2019 BMCA Election');
     }
 
     function fireTrigger(mode, frames) {
-      postApi('/api/trigger', { mode, frames });
+      postApi('/api/trigger', { mode, frames },
+        mode === 'burst' ? 'Scheduled 5-Frame Synchronized Burst Scan' : 'Broadcast SCHEDULE_CAPTURE_AT (+Lead Time)');
     }
 
     function updateTelemetryPose() {
@@ -1225,18 +1925,19 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
         z_mm: Number(document.getElementById('pose-z').value),
         zoom_raw: Number(document.getElementById('pose-zoom').value),
         focus_raw: 4096
-      });
+      }, 'Synthesized OpenTrackIO & FreeD 0xD1/0xD2 packets');
     }
 
     function addManifestRecord() {
       postApi('/api/manifest', {
         sensor_id: document.getElementById('manifest-sensor').value,
         ext: document.getElementById('manifest-ext').value
-      });
+      }, 'Appended capture record to .abuscan.json & Colmap manifest');
     }
 
     function setApplianceLock(gnss_locked) {
-      postApi('/api/appliance', { gnss_locked });
+      postApi('/api/appliance', { gnss_locked },
+        gnss_locked ? 'Appliance Locked to Primary GNSS/TCXO (Class 6)' : 'Appliance Switched to TCXO Holdover (Class 7)');
     }
 
     pollState();
