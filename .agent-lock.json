@@ -1,12 +1,12 @@
 {
-  "current_version": "v0.0.0.2",
+  "current_version": "v0.0.0.3",
   "active_locks": {
     "antigravity": {
       "status": "IDLE",
-      "branch": "agent/antigravity/P1-T1-overlay-clock",
-      "task_id": "P1-T1",
+      "branch": "agent/antigravity/P1-T2-smpte-timestep",
+      "task_id": "P1-T2",
       "locked_paths": [],
-      "timestamp_utc": "2026-10-17T14:45:05Z"
+      "timestamp_utc": "2026-10-17T14:47:58Z"
     },
     "chatgpt": {
       "status": "IDLE",
