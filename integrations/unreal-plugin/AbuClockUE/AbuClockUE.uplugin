@@ -1,0 +1,34 @@
+{
+  "FileVersion": 3,
+  "Version": 9,
+  "VersionName": "0.0.0.9",
+  "FriendlyName": "Abu Clock & Track Virtual Production Synchronization",
+  "Description": "SMPTE ST 2059-1/2 TimecodeProvider, Deterministic Spinlock CustomTimeStep, and OpenTrackIO/FreeD-TC LiveLink Source powered by libabuclock.",
+  "Category": "Virtual Production",
+  "CreatedBy": "Ahmad Emranian",
+  "CreatedByURL": "https://ahmademranian.dev/products",
+  "DocsURL": "https://github.com/saemranian/abu-clock",
+  "MarketplaceURL": "",
+  "SupportURL": "https://github.com/saemranian/abu-clock/issues",
+  "CanContainContent": false,
+  "IsBetaVersion": false,
+  "IsExperimentalVersion": false,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "AbuClockUE",
+      "Type": "Runtime",
+      "LoadingPhase": "PreDefault"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "LiveLink",
+      "Enabled": true
+    },
+    {
+      "Name": "TimeManagement",
+      "Enabled": true
+    }
+  ]
+}
