@@ -1,0 +1,15 @@
+[package]
+name = "abu-network"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Network synchronization and transport bus: PTPv2.1 (ST 2059-2), gPTP (802.1AS), AbuSync CSPTP, OpenTrackIO (OTrk), Extended FreeD (0xD1/0xD2), and scheduled sensor triggers"
+
+[dependencies]
+abu-clock-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

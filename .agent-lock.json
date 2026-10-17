@@ -1,0 +1,19 @@
+{
+  "current_version": "v0.0.0.1",
+  "active_locks": {
+    "antigravity": {
+      "status": "IDLE",
+      "branch": "dev",
+      "task_id": "P0-T1",
+      "locked_paths": [],
+      "timestamp_utc": "2026-10-17T14:39:23Z"
+    },
+    "chatgpt": {
+      "status": "IDLE",
+      "branch": "dev",
+      "task_id": "NONE",
+      "locked_paths": [],
+      "timestamp_utc": "2026-10-17T14:38:00Z"
+    }
+  }
+}

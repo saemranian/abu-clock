@@ -1,0 +1,35 @@
+# Rust / Cargo
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Node / Tauri / Vite
+node_modules/
+dist/
+apps/abu-clock-gui/dist/
+apps/abu-clock-gui/src-tauri/target/
+apps/abu-clock-gui/src-tauri/gen/
+
+# Native FFI & Engine build artifacts
+*.dll
+*.so
+*.dylib
+*.lib
+*.exp
+*.pdb
+*.xcframework/
+__pycache__/
+*.pyc
+*.whl
+Intermediate/
+Binaries/
+DerivedDataCache/
+Saved/
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~

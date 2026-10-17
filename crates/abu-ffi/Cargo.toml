@@ -1,0 +1,20 @@
+[package]
+name = "abu-ffi"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Mozilla UniFFI and C-ABI bindings (libabuclock) exporting Swift, C++, C#, and Python interfaces for Abu Track & Scan, Unreal Engine 5, and NVIDIA Omniverse"
+
+[lib]
+name = "abuclock"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+abu-clock-core.workspace = true
+abu-network.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

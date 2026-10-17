@@ -1,0 +1,14 @@
+[package]
+name = "abu-clock-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Core timing engine: OS monotonic timers, statime::OverlayClock virtual PLL, SMPTE ST 2059-1 / ST 12-1 timecode synthesis, and hybrid spinlock timestep ticker"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

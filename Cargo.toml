@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/abu-clock-core",
+    "crates/abu-network",
+    "crates/abu-daemon",
+    "crates/abu-ffi",
+]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+authors = ["Ahmad Emranian <saemranian@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saemranian/abu-clock"
+homepage = "https://ahmademranian.dev/products"
+description = "Cross-Platform Precision SMPTE Timecode, Deterministic Timestep (Hz) Synchronization, and Hardware-Ready PTP/gPTP Master Clock Engine"
+
+[workspace.dependencies]
+abu-clock-core = { path = "crates/abu-clock-core" }
+abu-network = { path = "crates/abu-network" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+tracing = "0.1"
