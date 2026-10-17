@@ -14,13 +14,16 @@ use abu_clock_core::{
     SharedClock, SmpteTimecodeEngine, ABU_CLOCK_VERSION, DEFAULT_TAI_MINUS_UTC_SECONDS,
 };
 use abu_network::{
-    freed_checksum, AbuScanCoordinator, BmcaDataset, CameraPose6DoF, DualModePtpEngine,
+    default_ecosystem_nodes, freed_checksum, AbuEcosystemDiscoveryBeacon, AbuEcosystemNodeInfo,
+    AbuScanCoordinator, AbuTrackLiveLinkPacket, BmcaDataset, CameraPose6DoF, DualModePtpEngine,
     FreeDPacket, OpenTrackIoEncoding, OpenTrackIoPacket, OpenTrackIoPayload, PtpPortState,
     ScheduleCaptureAt, SmpteSyncMetadataTlv, TimestampedUdpSocket, TimingProfileConfig,
-    ABUSYNC_EVENT_PORT_UNPRIVILEGED,
+    ABUTRACK_DEFAULT_TELEMETRY_PORT, ABUTRACK_DEFAULT_VIDEO_RTP_PORT, ABU_ECOSYSTEM_BEACON_MAGIC,
+    ABUSYNC_EVENT_PORT_UNPRIVILEGED, ABUSYNC_GENERAL_PORT_UNPRIVILEGED,
 };
 use abuclock::{AbuScanCaptureRecord, AbuScanSessionManifest};
 
+pub mod mcp;
 pub mod server;
 pub mod ui_html;
 
@@ -81,7 +84,7 @@ pub struct CaptureExecutionLog {
     pub receipts: Vec<SensorCaptureReceipt>,
 }
 
-/// Decoded inspection view of OpenTrackIO (`OTrk`) and FreeD (`0xD1` / `0xD2`) packets.
+/// Decoded inspection view of OpenTrackIO (`OTrk`), FreeD (`0xD1` 29B/37B, `0xD2` 41B), and `AbuTrack` LiveLink JSON packets.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TelemetryInspection {
     pub sequence_num: u16,
@@ -91,8 +94,10 @@ pub struct TelemetryInspection {
     pub opentrackio_total_bytes: usize,
     pub freed_d1_hex: String,
     pub freed_d1_checksum_hex: String,
+    pub freed_37b_hex: String,
     pub freed_d2_hex: String,
     pub freed_d2_checksum_hex: String,
+    pub abutrack_livelink_json: String,
 }
 
 /// Phase 3 Hardware Grandmaster Appliance status (`Raspberry Pi CM4 + DS3231 TCXO + PHC`).
@@ -160,6 +165,8 @@ pub struct GuiSlateSnapshot {
     pub manifest_colmap_txt: String,
     pub appliance: ApplianceStatusSnapshot,
     pub udp_socket: UdpSocketStatus,
+    pub ecosystem_nodes: Vec<AbuEcosystemNodeInfo>,
+    pub discovery_beacon: AbuEcosystemDiscoveryBeacon,
 }
 
 /// Configuration update payload sent from the UI parameter settings panel.
@@ -216,6 +223,7 @@ pub struct GuiAppController {
     pub telemetry_seq: u16,
     pub session_manifest: AbuScanSessionManifest,
     pub appliance_gnss_locked: bool,
+    pub ecosystem_nodes: Vec<AbuEcosystemNodeInfo>,
 }
 
 impl Default for GuiAppController {
@@ -298,6 +306,11 @@ impl GuiAppController {
             telemetry_seq: 1,
             session_manifest: AbuScanSessionManifest::new("AbuStudio_Session_01"),
             appliance_gnss_locked: true,
+            ecosystem_nodes: default_ecosystem_nodes(
+                initial_tai_ns,
+                FrameRate::FPS_29_97_DF,
+                0,
+            ),
         };
 
         // Pre-warm the Kalman servo through the 7.0s ST 2059 gate so initial state is Locked
@@ -646,6 +659,66 @@ impl GuiAppController {
         self.appliance_gnss_locked = locked;
     }
 
+    /// Registers or refreshes an Abu Ecosystem node (`iOS AbuTrack`, `Windows DesktopSync`, `UE5 LiveLinkAbuTrack`).
+    pub fn register_ecosystem_node(&mut self, mut node: AbuEcosystemNodeInfo) {
+        node.last_seen_tai_ns = self.clock.now_tai_ns();
+        if let Some(existing) = self
+            .ecosystem_nodes
+            .iter_mut()
+            .find(|n| n.node_id == node.node_id)
+        {
+            *existing = node;
+        } else {
+            self.ecosystem_nodes.push(node);
+        }
+    }
+
+    /// Builds a live `AbuEcosystemDiscoveryBeacon` so any iOS, PC, or UE5 node can discover
+    /// the Master Clock and all registered sibling nodes in a single query.
+    pub fn discovery_beacon(&self) -> AbuEcosystemDiscoveryBeacon {
+        let tai_ns = self.clock.now_tai_ns();
+        let synth = self.engine.synthesize_at_tai_ns(tai_ns);
+        let bcd = synth.timecode.to_bcd_u32();
+        let mut nodes = self.ecosystem_nodes.clone();
+        let fps_str = format!(
+            "{:.3} Hz ({})",
+            self.engine.frame_rate.as_hz(),
+            if self.engine.frame_rate.drop_frame {
+                "DF"
+            } else {
+                "NDF"
+            }
+        );
+        let cur_offset = self.clock.metrics().offset_ns;
+        for n in &mut nodes {
+            n.frame_rate_str = fps_str.clone();
+            n.last_seen_tai_ns = tai_ns;
+            if n.node_id == "abu-clock-master-01" {
+                n.offset_ns = cur_offset;
+                n.lock_state = format!("{:?}", self.clock.metrics().lock_state);
+            }
+        }
+        AbuEcosystemDiscoveryBeacon {
+            magic: ABU_ECOSYSTEM_BEACON_MAGIC.to_string(),
+            version: ABU_CLOCK_VERSION.to_string(),
+            master_ip: "127.0.0.1".to_string(),
+            csptp_event_port: ABUSYNC_EVENT_PORT_UNPRIVILEGED,
+            sntp_general_port: ABUSYNC_GENERAL_PORT_UNPRIVILEGED,
+            http_api_port: 7878,
+            abutrack_telemetry_port: ABUTRACK_DEFAULT_TELEMETRY_PORT,
+            abutrack_video_port: ABUTRACK_DEFAULT_VIDEO_RTP_PORT,
+            ptp_domain: self.ptp_domain,
+            tai_ns,
+            smpte_timecode: synth.timecode.to_slate_string(),
+            bcd_hex: format!("0x{:08X}", bcd),
+            fps_num: self.engine.frame_rate.numerator,
+            fps_den: self.engine.frame_rate.denominator,
+            drop_frame: self.engine.frame_rate.drop_frame,
+            trigger_lead_time_ms: self.trigger_lead_time_ms,
+            nodes,
+        }
+    }
+
     /// Generates an instantaneous `GuiSlateSnapshot` for the Unified Control Center frontend.
     pub fn snapshot(&self) -> GuiSlateSnapshot {
         let tai_ns = self.clock.now_tai_ns();
@@ -697,8 +770,14 @@ impl GuiAppController {
 
         let freed = FreeDPacket::new(self.camera_pose, synth.timecode, tai_ns);
         let d1_bytes = freed.to_standard_d1_bytes();
+        let d37_bytes = freed.to_abutrack_37b_bytes();
         let d2_bytes = freed.to_extended_d2_bytes();
         let d1_hex = d1_bytes
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let d37_hex = d37_bytes
             .iter()
             .map(|b| format!("{:02X}", b))
             .collect::<Vec<_>>()
@@ -709,6 +788,17 @@ impl GuiAppController {
             .collect::<Vec<_>>()
             .join(" ");
 
+        let livelink_pkt = AbuTrackLiveLinkPacket::from_pose_and_clock(
+            "AbuTrack",
+            self.camera_pose,
+            24.0,
+            -0.042,
+            0.011,
+            synth.timecode,
+            tai_ns,
+            &format!("{:?}", convergence.lock_state),
+        );
+
         let telemetry = TelemetryInspection {
             sequence_num: self.telemetry_seq,
             camera_pose: self.camera_pose,
@@ -717,8 +807,10 @@ impl GuiAppController {
             opentrackio_total_bytes: otrk_bytes.len(),
             freed_d1_hex: d1_hex,
             freed_d1_checksum_hex: format!("0x{:02X}", freed_checksum(&d1_bytes[..28])),
+            freed_37b_hex: d37_hex,
             freed_d2_hex: d2_hex,
             freed_d2_checksum_hex: format!("0x{:02X}", freed_checksum(&d2_bytes[..40])),
+            abutrack_livelink_json: serde_json::to_string_pretty(&livelink_pkt).unwrap_or_default(),
         };
 
         let appliance = ApplianceStatusSnapshot {
@@ -759,6 +851,9 @@ impl GuiAppController {
             last_tx_tai_ns: self.udp_last_tx_tai_ns,
         };
 
+        let discovery_beacon = self.discovery_beacon();
+        let ecosystem_nodes = discovery_beacon.nodes.clone();
+
         GuiSlateSnapshot {
             version: ABU_CLOCK_VERSION.to_string(),
             monotonic_backend: PlatformMonotonicClock::backend_name().to_string(),
@@ -794,6 +889,8 @@ impl GuiAppController {
             manifest_colmap_txt: self.session_manifest.to_colmap_images_txt(),
             appliance,
             udp_socket,
+            ecosystem_nodes,
+            discovery_beacon,
         }
     }
 
@@ -853,5 +950,43 @@ mod tests {
 
         let cap = ctrl.trigger_scheduled_capture();
         assert_eq!(cap.sequence_id, 2);
+        assert_eq!(snap.ecosystem_nodes.len(), 4);
+        assert!(!snap.telemetry.freed_37b_hex.is_empty());
+    }
+
+    #[test]
+    fn mcp_jsonrpc_and_ecosystem_discovery_work() {
+        let mut ctrl = GuiAppController::new();
+        let init_req = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {}
+        });
+        let init_resp = mcp::handle_mcp_request(&mut ctrl, &init_req).unwrap();
+        assert_eq!(init_resp["result"]["serverInfo"]["name"], "abu-clock-mcp");
+
+        let list_req = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+        });
+        let list_resp = mcp::handle_mcp_request(&mut ctrl, &list_req).unwrap();
+        assert_eq!(list_resp["result"]["tools"].as_array().unwrap().len(), 7);
+
+        let call_req = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+                "name": "abu_clock_get_integration_guide",
+                "arguments": { "target": "all" }
+            }
+        });
+        let call_resp = mcp::handle_mcp_request(&mut ctrl, &call_req).unwrap();
+        let text = call_resp["result"]["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("NTPSyncClient.swift"));
+        assert!(text.contains("LiveLinkAbuTrackSource.cpp"));
     }
 }

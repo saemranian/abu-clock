@@ -47,6 +47,11 @@ fn launch_desktop_window(url: &str) {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+    if args.iter().any(|a| a == "--mcp") {
+        let _ = abu_clock_gui_lib::mcp::run_mcp_stdio_server();
+        return;
+    }
+
     let controller = GuiAppController::new();
     let snap = controller.snapshot();
 

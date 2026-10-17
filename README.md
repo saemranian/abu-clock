@@ -2,7 +2,7 @@
 
 **Cross-Platform Precision SMPTE Timecode, Deterministic Timestep (`Hz`) Synchronization, and Hardware-Ready PTP/gPTP Master Clock Engine**
 
-[![Version](https://img.shields.io/badge/version-v0.0.0.13-06b6d4.svg)](./VERSION)
+[![Version](https://img.shields.io/badge/version-v0.0.0.14-06b6d4.svg)](./VERSION)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-10b981.svg)](#license)
 [![Portfolio](https://img.shields.io/badge/ecosystem-ahmademranian.dev%2Fproducts-38bdf8.svg)](https://ahmademranian.dev/products)
 
@@ -12,8 +12,10 @@
 
 ## Documentation & Manuals
 
-- **[User Manual & Studio Operator Guide (`docs/USER_MANUAL.md`)](./docs/USER_MANUAL.md)** — Complete step-by-step operational guide to the unified **Abu Clock** 5-tab PC Studio application, 1-click studio presets, multi-rig barrier triggering, and pre-shoot checklist.
+- **[User Manual & Studio Operator Guide (`docs/USER_MANUAL.md`)](./docs/USER_MANUAL.md)** — Complete step-by-step operational guide to the unified **Abu Clock** 5-tab PC Studio application, parameter hover guides, 1-click studio presets, multi-rig barrier triggering, and pre-shoot checklist.
 - **[Developer & Systems Integration Guide (`docs/DEVELOPER_GUIDE.md`)](./docs/DEVELOPER_GUIDE.md)** — Complete technical reference for Rust crates, C/C++17 native FFI (`abu_clock.h`), Python & NVIDIA Omniverse (`omni.abu.clock`), Unreal Engine 5 (`AbuClockUE`), iOS Swift (`AbuClockKit`), and the local HTTP JSON REST API (`127.0.0.1:7878`).
+- **[Abu Track & Scan Ecosystem Integration Guide (`docs/ABU_TRACK_AND_SCAN_INTEGRATION_GUIDE.md`)](./docs/ABU_TRACK_AND_SCAN_INTEGRATION_GUIDE.md)** — Architectural interoperability blueprint & drop-in recipes connecting the `Abu Track & Scan` iOS Swift app, Windows Desktop Sync & Monitor, and Unreal Engine 5 `LiveLinkAbuTrack` plugin to `Abu Clock`.
+- **[MCP Server & HTTP API Guide (`docs/MCP_AND_API_GUIDE.md`)](./docs/MCP_AND_API_GUIDE.md)** — Complete guide to the native Model Context Protocol (`abu-clock-mcp.exe`) server, global Antigravity skill (`abu-clock`), 7 MCP tools, and HTTP REST endpoints.
 - **[Fundamentals, Architecture & Graphical Guide (`docs/ABU_CLOCK_USER_GUIDE.md`)](./docs/ABU_CLOCK_USER_GUIDE.md)** — Deep dive into hardware monotonic clocks, 2-state Kalman PLL servo math, TAI vs. UTC, SMPTE ST 12-1 Drop-Frame arithmetic, and future-time barrier triggering.
 - **[Running & Testing Guide (`docs/RUNNING_AND_TESTING_GUIDE.md`)](./docs/RUNNING_AND_TESTING_GUIDE.md)** — Quick PowerShell commands to launch the PC app and run all automated tests.
 - **[Hardware Appliance BOM (`docs/HARDWARE_APPLIANCE_BOM.md`)](./docs/HARDWARE_APPLIANCE_BOM.md)** — Raspberry Pi CM4 / Pi 5 + Maxim DS3231 TCXO + Intel I210-T1 Grandmaster hardware specification.

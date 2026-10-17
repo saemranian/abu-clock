@@ -1,15 +1,20 @@
-//! Local HTTP + JSON RPC server for the **Abu Clock** PC Application (`127.0.0.1:7878`).
+//! Local HTTP + JSON RPC server (`127.0.0.1:7878`) and UDP Ecosystem Discovery / SNTPv4 responder (`50320`)
+//! for the **Abu Clock** PC Application.
 //!
 //! Serves both the embedded Unified Control Center UI (`GET /`) and real-time JSON endpoints
-//! (`GET /api/state`, `POST /api/config`, `POST /api/clock`, `POST /api/bmca`, `POST /api/trigger`,
+//! (`GET /api/state`, `GET /api/ecosystem/discover`, `POST /api/ecosystem/register`, `GET /api/sntp`,
+//! `POST /api/config`, `POST /api/clock`, `POST /api/bmca`, `POST /api/trigger`,
 //! `POST /api/telemetry`, `POST /api/manifest`, `POST /api/appliance`, `POST /api/shutdown`) with CORS headers.
 
 use std::io::{Read, Write};
-use std::net::TcpListener;
+use std::net::{TcpListener, UdpSocket};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use abu_network::CameraPose6DoF;
+use abu_network::{
+    AbuEcosystemNodeInfo, CameraPose6DoF, SntpResponder, ABUSYNC_GENERAL_PORT_UNPRIVILEGED,
+    ABU_ECOSYSTEM_BEACON_MAGIC,
+};
 use serde::Deserialize;
 
 use crate::{ui_html::INDEX_HTML, ConfigUpdateRequest, GuiAppController};
@@ -46,8 +51,9 @@ struct ApplianceActionRequest {
     gnss_locked: bool,
 }
 
-/// Starts the Abu Clock local HTTP control server on `addr` (`127.0.0.1:7878`) and spawns the
-/// continuous 8 Hz (`125 ms`) background Kalman servo ticker thread.
+/// Starts the Abu Clock local HTTP control server on `addr` (`127.0.0.1:7878`), spawns the
+/// continuous 8 Hz (`125 ms`) background Kalman servo ticker thread, and spawns the unprivileged
+/// UDP `50320` responder for `NTPSyncClient.swift` (48-byte SNTPv4) and `ABU_ECO_V1` LAN discovery.
 pub fn run_http_server(
     addr: &str,
     controller: Arc<Mutex<GuiAppController>>,
@@ -60,6 +66,34 @@ pub fn run_http_server(
         std::thread::sleep(Duration::from_millis(125));
         if let Ok(mut guard) = bg_ctrl.lock() {
             guard.background_servo_tick();
+        }
+    });
+
+    // Spawn unprivileged UDP 50320 responder for iOS NTPSyncClient.swift (48B SNTP) & ABU_ECO_V1 discovery
+    let udp_ctrl = controller.clone();
+    std::thread::spawn(move || {
+        let bind_addr = format!("0.0.0.0:{}", ABUSYNC_GENERAL_PORT_UNPRIVILEGED);
+        if let Ok(sock) = UdpSocket::bind(&bind_addr) {
+            let mut buf = [0u8; 2048];
+            while let Ok((n, peer)) = sock.recv_from(&mut buf) {
+                if let Ok(guard) = udp_ctrl.lock() {
+                    let rx_tai = guard.clock.now_tai_ns();
+                    if n >= 48 && (buf[0] == 0x1B || buf[0] == 0x23) {
+                        // RFC 4330 48-byte SNTPv3/v4 request from iOS NTPSyncClient.swift
+                        let tx_tai = guard.clock.now_tai_ns();
+                        if let Ok(resp) = SntpResponder::build_response(&buf[..48], rx_tai, tx_tai) {
+                            let _ = sock.send_to(&resp, peer);
+                        }
+                    } else if let Ok(text) = std::str::from_utf8(&buf[..n]) {
+                        if text.starts_with(ABU_ECOSYSTEM_BEACON_MAGIC) || text.starts_with("DISCOVER_ABU") {
+                            let beacon = guard.discovery_beacon();
+                            if let Ok(json) = serde_json::to_vec(&beacon) {
+                                let _ = sock.send_to(&json, peer);
+                            }
+                        }
+                    }
+                }
+            }
         }
     });
 
@@ -125,8 +159,59 @@ fn handle_connection(
         Err(poisoned) => poisoned.into_inner(),
     };
 
+    if method == "GET" && path == "/api/ecosystem/discover" {
+        let beacon = guard.discovery_beacon();
+        drop(guard);
+        let json = serde_json::to_string(&beacon).unwrap_or_else(|_| "{}".to_string());
+        let resp = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-cache\r\nContent-Length: {}\r\n\r\n{}",
+            json.len(),
+            json
+        );
+        stream.write_all(resp.as_bytes())?;
+        return Ok(());
+    }
+
+    if (method == "GET" || method == "POST") && path == "/api/sntp" {
+        let rx_tai = guard.clock.now_tai_ns();
+        let synth = guard.engine.synthesize_at_tai_ns(rx_tai);
+        let mut req48 = [0u8; 48];
+        req48[0] = 0x1B;
+        let tx_tai = guard.clock.now_tai_ns();
+        let sntp_bytes = SntpResponder::build_response(&req48, rx_tai, tx_tai).unwrap_or([0u8; 48]);
+        let sntp_hex = sntp_bytes
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let payload = serde_json::json!({
+            "stratum": 1,
+            "ref_id": "ABUC",
+            "rx_tai_ns": rx_tai,
+            "tx_tai_ns": tx_tai,
+            "smpte_timecode": synth.timecode.to_slate_string(),
+            "bcd_hex": format!("0x{:08X}", synth.timecode.to_bcd_u32()),
+            "subframe_phase": synth.phase,
+            "sntp_48b_hex": sntp_hex,
+        });
+        drop(guard);
+        let json = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
+        let resp = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-cache\r\nContent-Length: {}\r\n\r\n{}",
+            json.len(),
+            json
+        );
+        stream.write_all(resp.as_bytes())?;
+        return Ok(());
+    }
+
     match (method, path) {
         ("GET", "/api/state") => {}
+        ("POST", "/api/ecosystem/register") => {
+            if let Ok(node) = serde_json::from_str::<AbuEcosystemNodeInfo>(body) {
+                guard.register_ecosystem_node(node);
+            }
+        }
         ("POST", "/api/config") => {
             if let Ok(req) = serde_json::from_str::<ConfigUpdateRequest>(body) {
                 guard.apply_config(req);

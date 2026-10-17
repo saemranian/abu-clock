@@ -18,6 +18,8 @@ pub const FREED_EXTENDED_TC_ID: u8 = 0xD2;
 
 /// Fixed byte length of a Standard FreeD (`0xD1`) packet.
 pub const FREED_STANDARD_LEN: usize = 29;
+/// Fixed byte length of an `Abu Track & Scan` 37-byte Extended FreeD (`0xD1` + 8-byte `int64` ms) packet.
+pub const FREED_ABUTRACK_37_LEN: usize = 37;
 /// Fixed byte length of an Extended FreeD-TC (`0xD2`) packet.
 pub const FREED_EXTENDED_TC_LEN: usize = 41;
 
@@ -161,6 +163,29 @@ impl FreeDPacket {
         };
         let rolling = u16::from_be_bytes([buf[26], buf[27]]);
         Ok((pose, rolling))
+    }
+
+    /// Serializes a 37-byte `Abu Track & Scan` Extended FreeD (`0xD1` + 8-byte big-endian `int64` ms)
+    /// packet matching `UDPStreamingManager.swift`, `camtrack_desktop_gui.py`, and `LiveLinkAbuTrackSource.cpp`.
+    pub fn to_abutrack_37b_bytes(&self) -> [u8; FREED_ABUTRACK_37_LEN] {
+        let mut out = [0u8; FREED_ABUTRACK_37_LEN];
+        let d1 = self.to_standard_d1_bytes();
+        out[0..29].copy_from_slice(&d1);
+        let ts_ms = (self.tai_ns / 1_000_000) as i64;
+        out[29..37].copy_from_slice(&ts_ms.to_be_bytes());
+        out
+    }
+
+    /// Parses a 37-byte `Abu Track & Scan` Extended FreeD (`0xD1` + 8-byte big-endian `int64` ms) packet.
+    pub fn from_abutrack_37b_bytes(buf: &[u8]) -> Result<(CameraPose6DoF, u16, i64), &'static str> {
+        if buf.len() != FREED_ABUTRACK_37_LEN {
+            return Err("AbuTrack 37-byte Extended FreeD packet must be exactly 37 bytes");
+        }
+        let (pose, rolling) = Self::from_standard_d1_bytes(&buf[0..29])?;
+        let ts_ms = i64::from_be_bytes([
+            buf[29], buf[30], buf[31], buf[32], buf[33], buf[34], buf[35], buf[36],
+        ]);
+        Ok((pose, rolling, ts_ms))
     }
 
     /// Parses an Extended 41-byte AbuTrack FreeD-TC (`0xD2`) packet and verifies its checksum.

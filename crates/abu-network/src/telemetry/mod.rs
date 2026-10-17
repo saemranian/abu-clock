@@ -4,8 +4,8 @@ pub mod freed;
 pub mod opentrackio;
 
 pub use freed::{
-    freed_checksum, FreeDPacket, FREED_EXTENDED_TC_ID, FREED_EXTENDED_TC_LEN, FREED_STANDARD_ID,
-    FREED_STANDARD_LEN,
+    freed_checksum, FreeDPacket, FREED_ABUTRACK_37_LEN, FREED_EXTENDED_TC_ID,
+    FREED_EXTENDED_TC_LEN, FREED_STANDARD_ID, FREED_STANDARD_LEN,
 };
 pub use opentrackio::{
     CameraPose6DoF, OpenTrackIoEncoding, OpenTrackIoPacket, OpenTrackIoPayload,
@@ -64,7 +64,7 @@ mod tests {
     }
 
     #[test]
-    fn freed_standard_29byte_and_extended_41byte_roundtrip() {
+    fn freed_standard_29byte_abutrack_37byte_and_extended_41byte_roundtrip() {
         let tc = SmpteTimecode {
             hours: 14,
             minutes: 22,
@@ -96,7 +96,16 @@ mod tests {
         assert!((decoded_pose.pan_deg - 30.0).abs() < 0.001);
         assert!((decoded_pose.x_mm - 500.0).abs() < 0.02);
 
-        // 2. Extended 41-byte FreeD-TC (0xD2)
+        // 2. Abu Track & Scan 37-byte Extended FreeD (0xD1 + 8B int64_ms)
+        let d37 = freed.to_abutrack_37b_bytes();
+        assert_eq!(d37.len(), 37);
+        assert_eq!(d37[0], 0xD1);
+        let (pose37, rolling37, ts_ms) = FreeDPacket::from_abutrack_37b_bytes(&d37).unwrap();
+        assert_eq!(rolling37, 10 * 60 + 8);
+        assert_eq!(ts_ms, (tai_ns / 1_000_000) as i64);
+        assert!((pose37.pan_deg - 30.0).abs() < 0.001);
+
+        // 3. Extended 41-byte FreeD-TC (0xD2)
         let d2 = freed.to_extended_d2_bytes();
         assert_eq!(d2.len(), 41);
         assert_eq!(d2[0], 0xD2);

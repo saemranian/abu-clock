@@ -17,3 +17,4 @@ All notable version transitions (`vA.B.C.D`, incremented by `+1` per completed a
 | `v0.0.0.11` | `2026-10-17T15:10:22Z` | `antigravity` | `P3-T2` | Open-source release packaging, multi-OS installers, and ahmademranian.dev/products spec docs |
 | `v0.0.0.12` | `2026-10-17T15:54:30Z` | `antigravity` | `P3-T3` | Unified Abu Clock PC Application, 5-tab live Control Center UI, and Graphical User Guide |
 | `v0.0.0.13` | `2026-10-17T16:24:13Z` | `antigravity` | `P3-T4` | Intuitive Vector-Icon Studio UI, Window Title Version, Live 8 Hz Servo, and Official User/Developer Manuals |
+| `v0.0.0.14` | `2026-10-17T17:40:05Z` | `antigravity` | `P3-T5` | Add parameter hover guides, native abu-clock-mcp server, global Antigravity skill, 37-byte FreeD & SNTPv4 responder, and Abu Track & Scan ecosystem discovery |

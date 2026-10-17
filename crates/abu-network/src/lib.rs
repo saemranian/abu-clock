@@ -4,11 +4,17 @@
 //! unprivileged AbuSync CSPTP/SNTP datagrams (ports 50319/50320), scheduled
 //! future-time sensor triggers, OpenTrackIO (`OTrk`), and FreeD (`0xD1`/`0xD2`).
 
+pub mod ecosystem;
 pub mod ptp;
 pub mod telemetry;
 pub mod trigger;
 
 pub use abu_clock_core::ABU_CLOCK_VERSION;
+pub use ecosystem::{
+    default_ecosystem_nodes, AbuEcosystemDiscoveryBeacon, AbuEcosystemNodeInfo,
+    AbuEcosystemNodeKind, AbuTrackLiveLinkPacket, SntpResponder, ABUTRACK_DEFAULT_TELEMETRY_PORT,
+    ABUTRACK_DEFAULT_VIDEO_RTP_PORT, ABU_ECOSYSTEM_BEACON_MAGIC,
+};
 pub use ptp::{
     BmcaDataset, ClockIdentity, DelayMechanism, DualModePtpEngine, PtpPortState, PtpWireMessage,
     SmpteSyncMetadataTlv, TimestampedUdpSocket, TimingProfileConfig, TimingProfileKind,
@@ -18,8 +24,9 @@ pub use ptp::{
 };
 pub use telemetry::{
     freed_checksum, CameraPose6DoF, FreeDPacket, OpenTrackIoEncoding, OpenTrackIoPacket,
-    OpenTrackIoPayload, OpenTrackIoTimecodeField, OpenTrackIoTiming, FREED_EXTENDED_TC_ID,
-    FREED_EXTENDED_TC_LEN, FREED_STANDARD_ID, FREED_STANDARD_LEN, OTRK_HEADER_LEN, OTRK_MAGIC,
+    OpenTrackIoPayload, OpenTrackIoTimecodeField, OpenTrackIoTiming, FREED_ABUTRACK_37_LEN,
+    FREED_EXTENDED_TC_ID, FREED_EXTENDED_TC_LEN, FREED_STANDARD_ID, FREED_STANDARD_LEN,
+    OTRK_HEADER_LEN, OTRK_MAGIC,
 };
 pub use trigger::{
     AbuScanCoordinator, CaptureTriggerMode, ScheduleCaptureAt, DEFAULT_TRIGGER_LEAD_TIME_NS,

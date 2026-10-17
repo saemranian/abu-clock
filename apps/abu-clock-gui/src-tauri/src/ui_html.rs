@@ -633,9 +633,103 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
       color: #cbd5e1;
       line-height: 1.55;
     }
+
+    /* Interactive Parameter Hover Guide Popup */
+    [data-tip-title] {
+      position: relative;
+      transition: border-color 0.14s ease;
+    }
+    label[data-tip-title] {
+      cursor: help;
+    }
+    label[data-tip-title]::after {
+      content: "?";
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: rgba(56,189,248,0.16);
+      border: 1px solid rgba(56,189,248,0.45);
+      color: #38bdf8;
+      font-size: 0.65rem;
+      font-weight: 800;
+      position: absolute;
+      top: 0;
+      right: 2px;
+    }
+    #param-tooltip {
+      position: fixed;
+      z-index: 10000;
+      width: 340px;
+      max-width: calc(100vw - 24px);
+      background: linear-gradient(165deg, #0d172a 0%, #060b16 100%);
+      border: 1px solid #38bdf8;
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 16px 38px rgba(0,0,0,0.82), 0 0 22px rgba(56,189,248,0.22);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.14s ease, transform 0.14s ease;
+    }
+    #param-tooltip.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .tip-hdr {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.84rem;
+      font-weight: 800;
+      color: #38bdf8;
+      margin-bottom: 6px;
+    }
+    .tip-desc {
+      font-size: 0.78rem;
+      color: #e2e8f0;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+    .tip-affects-hdr {
+      font-size: 0.67rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    .tip-affects-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .tip-chip {
+      background: rgba(16,185,129,0.16);
+      border: 1px solid rgba(16,185,129,0.45);
+      color: #34d399;
+      border-radius: 6px;
+      padding: 2px 7px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      font-family: "JetBrains Mono", "Consolas", monospace;
+    }
   </style>
 </head>
 <body>
+  <!-- Floating Parameter Hover Guide Popup -->
+  <div id="param-tooltip" role="tooltip" aria-hidden="true">
+    <div class="tip-hdr">
+      <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <span id="tip-title-text">Parameter Guide</span>
+    </div>
+    <div id="tip-desc-text" class="tip-desc"></div>
+    <div class="tip-affects-hdr">Where It Affects (Subsystems &amp; Abu Ecosystem):</div>
+    <div id="tip-affects-list" class="tip-affects-row"></div>
+  </div>
+
   <!-- Floating Toast Feedback -->
   <div id="toast-banner">
     <svg class="ico" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
@@ -646,7 +740,10 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
     <!-- Top Header -->
     <header class="top-bar">
       <div class="brand-left">
-        <div class="brand-logo" title="Abu Clock Master Precision Oscillators">
+        <div class="brand-logo"
+             data-tip-title="Abu Clock Master Precision Studio"
+             data-tip-desc="Unified Rust/QPC Master Clock, SMPTE ST 12-1 Timecode Generator, IEEE 1588 / ST 2059-2 PTP Engine, and Multi-Sensor Barrier Coordinator."
+             data-tip-affects="OverlayClock,SmpteTimecodeEngine,iOS AbuTrack,Windows DesktopSync,UE5 LiveLinkAbuTrack">
           <svg class="ico ico-lg" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="9"/>
             <polyline points="12 7 12 12 15.5 14"/>
@@ -660,27 +757,50 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
           <div class="subtitle">
             <span>Precision Master Clock, Timecode &amp; Multi-Sensor Sync Studio</span>
             <span>&bull;</span>
-            <span>Oscillator: <strong id="hdr-backend" style="color:#e2e8f0;">Windows::QueryPerformanceCounter</strong></span>
+            <span data-tip-title="Hardware Monotonic Oscillator Backend"
+                  data-tip-desc="Low-level CPU hardware counter wrapped by OverlayClock. Never steps or jumps when OS NTP adjusts system wall time."
+                  data-tip-affects="OverlayClock::now_tai_ns,Spinlock Barrier Trigger">Oscillator: <strong id="hdr-backend" style="color:#e2e8f0;">Windows::QueryPerformanceCounter</strong></span>
             <span>&bull;</span>
-            <span>Socket: <strong id="hdr-udp" style="color:#38bdf8;">127.0.0.1:50319 (TX: 0 / RX: 0)</strong></span>
+            <span data-tip-title="Dual-Mode Timestamped UDP Socket"
+                  data-tip-desc="Live UDP socket bound on port 50319 (CSPTP Event) and 50320 (SNTPv4 &amp; Abu Ecosystem Discovery). Tracks real TX/RX packet counters."
+                  data-tip-affects="TimestampedUdpSocket,iOS NTPSyncClient.swift,Abu Ecosystem Discovery">Socket: <strong id="hdr-udp" style="color:#38bdf8;">127.0.0.1:50319 (TX: 0 / RX: 0)</strong></span>
           </div>
         </div>
       </div>
 
       <div class="badge-row">
-        <span id="badge-lock" class="badge Locked">
+        <button id="btn-hover-guide" class="badge info" style="cursor:pointer;" onclick="toggleHoverGuide()"
+                data-tip-title="Interactive Parameter Hover Guide Toggle"
+                data-tip-desc="When enabled (ON), hovering your mouse over any parameter, KPI, or control pops up an explanation of what it does and where it affects the Abu Ecosystem."
+                data-tip-affects="Studio UI UX,Operator Guidance">
+          <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span id="hover-guide-text">HOVER GUIDE: ON</span>
+        </button>
+        <span id="badge-lock" class="badge Locked"
+              data-tip-title="Kalman Servo Lock State"
+              data-tip-desc="Indicates whether OverlayClock has completed the mandatory 7.0s SMPTE ST 2059-2 warm-up window and converged below 100 ns (Wired) or 500 µs (Wi-Fi)."
+              data-tip-affects="OverlayClock,Capture Readiness Gate,UE5 Timecode Lock">
           <span class="dot-pulse"></span>
           <span id="badge-lock-text">LOCKED</span>
         </span>
-        <span id="badge-port" class="badge info">
+        <span id="badge-port" class="badge info"
+              data-tip-title="IEEE 1588-2019 PTP Port State"
+              data-tip-desc="Current BMCA state of DualModePtpEngine: MASTER (broadcasting Announce/Sync), SLAVE (following remote Grandmaster), or LISTENING."
+              data-tip-affects="DualModePtpEngine,SmpteSyncMetadataTlv,LAN Followers">
           <svg class="ico" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           <span id="badge-port-text">PORT: LISTENING</span>
         </span>
-        <span id="badge-transport" class="badge info">
+        <span id="badge-transport" class="badge info"
+              data-tip-title="Active Physical Transport Medium"
+              data-tip-desc="Switches Kalman measurement noise covariance (R) and outlier rejection between Wired Gigabit Ethernet (<100 ns target) and Wireless Wi-Fi (<500 µs target)."
+              data-tip-affects="Kalman R Covariance,Wi-Fi Outlier Gate,iOS Wi-Fi Follower">
           <svg class="ico" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           <span id="badge-transport-text">WIRED LAN</span>
         </span>
-        <span id="badge-wakelock" class="badge Locked">
+        <span id="badge-wakelock" class="badge Locked"
+              data-tip-title="Display &amp; CPU Wake-Lock Guard"
+              data-tip-desc="Prevents the OS from dimming the optical slate display or throttling background timer threads during long multi-camera shoots."
+              data-tip-affects="Optical Slate Display,8Hz Servo Thread,Mobile Rig Power">
           <svg class="ico" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
           <span id="badge-wakelock-text">WAKE-LOCK ON</span>
         </span>
@@ -690,17 +810,33 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
     <!-- Master SMPTE ST 12-1 Digital Slate -->
     <section class="digital-slate" aria-label="Master SMPTE ST 12-1 Digital Slate">
       <div>
-        <div id="slate-tc" class="tc-main">00:00:00;00.00</div>
+        <div id="slate-tc" class="tc-main"
+             data-tip-title="Master SMPTE ST 12-1 Timecode (HH:MM:SS;FF.sf)"
+             data-tip-desc="Live frame-accurate timecode synthesized from TAI nanoseconds. Uses semicolon (;) when Drop-Frame is active and colon (:) for Non-Drop-Frame."
+             data-tip-affects="Digital Clapperboard,FreeD 0xD2,OpenTrackIO,UE5 LiveLink,.abuscan.json">00:00:00;00.00</div>
         <div class="tc-meta">
-          <span>Frame <strong id="slate-frame">#0</strong></span>
-          <span>BCD (32b) <strong id="slate-bcd">0x00000000</strong></span>
-          <span>Rate <strong id="slate-rate">29.970 Hz (DF)</strong></span>
-          <span>PTP Domain <strong id="slate-domain">1</strong></span>
-          <span>TAI (ns) <strong id="slate-tai">1729180800000000000</strong></span>
+          <span data-tip-title="Monotonic Frame Index"
+                data-tip-desc="Continuous 64-bit frame counter since TAI epoch at the selected rational frame rate."
+                data-tip-affects="SmpteTimecodeEngine,Frame-Aligned Burst Trigger">Frame <strong id="slate-frame">#0</strong></span>
+          <span data-tip-title="32-Bit Packed BCD Timecode Word"
+                data-tip-desc="Binary-Coded Decimal representation (0xHHMMSSFF) embedded into 41-byte FreeD-TC (0xD2) packets, EXR headers, and C/C++ FFI structs."
+                data-tip-affects="FreeDPacket (0xD2),AbuScanCaptureRecord,C/C++ FFI">BCD (32b) <strong id="slate-bcd">0x00000000</strong></span>
+          <span data-tip-title="Active Rational Frame Rate"
+                data-tip-desc="Exact numerator/denominator cadence (e.g. 30000/1001 = 29.97 DF) broadcast to all followers via the 20-byte SMPTE ST 2059-2 TLV."
+                data-tip-affects="SmpteTimecodeEngine,ST 2059-2 TLV,UE5 FQualifiedFrameTime">Rate <strong id="slate-rate">29.970 Hz (DF)</strong></span>
+          <span data-tip-title="Active IEEE 1588 PTP Domain"
+                data-tip-desc="Logical PTP isolation domain (0–127). Domain 1 is default for AbuSync/Studio; Domain 0 is required by IEEE 802.1AS gPTP LiDARs."
+                data-tip-affects="DualModePtpEngine,Multicast Filtering,LiDAR gPTP">PTP Domain <strong id="slate-domain">1</strong></span>
+          <span data-tip-title="International Atomic Time (TAI Nanoseconds)"
+                data-tip-desc="Monotonic 64-bit nanosecond timestamp without leap-second discontinuities (TAI = UTC + 37s). Used as the universal time axis across all sensors."
+                data-tip-affects="OverlayClock,SCHEDULE_CAPTURE_AT,OpenTrackIO,COLMAP Sync">TAI (ns) <strong id="slate-tai">1729180800000000000</strong></span>
         </div>
       </div>
       <div class="slate-right">
-        <div class="phase-box">
+        <div class="phase-box"
+             data-tip-title="Sub-Frame Phase (φ ∈ [0.0, 1.0)) &amp; User Trim"
+             data-tip-desc="Fractional progress within the current video frame (0.0 = start of exposure/genlock edge, 0.5 = mid-frame). Used by UE5 LiveLink for sub-frame camera pose interpolation."
+             data-tip-affects="UE5 FQualifiedFrameTime,Genlock Phase Alignment,SLERP Pose Interpolation">
           <div style="display:flex;justify-content:space-between;font-size:0.74rem;color:var(--muted);">
             <span>Sub-Frame Phase (&phi;)</span>
             <strong id="slate-phase-text" style="color:var(--cyan);">0.000</strong>
@@ -713,7 +849,10 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
             <strong id="slate-trim" style="color:var(--text);">0 ns</strong>
           </div>
         </div>
-        <div id="optical-beacon" class="optical-beacon" title="Optical Sync Flash Beacon: Flashes pure white on Frame 00 for high-speed camera validation">
+        <div id="optical-beacon" class="optical-beacon"
+             data-tip-title="Frame-00 Optical Sync Flash Beacon"
+             data-tip-desc="Flashes pure 100% white at Frame 00 (0.00 <= φ < 0.25) at the top of every second. Point a DSLR, cinema camera, or iPhone at this box to optically verify sub-frame shutter alignment!"
+             data-tip-affects="DSLR Hot-Shoe Optical Calibration (sync_photos.py),High-Speed Camera Validation">
           <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
           <span>FRAME 00<br/>FLASH</span>
         </div>
@@ -781,23 +920,43 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
           <svg class="ico" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           1-Click Studio Presets:
         </span>
-        <button class="preset-chip" onclick="applyStudioPreset('Master','SmpteSt2059_2',1,64,128,'24,1,false',false,'Virtual Production (24 fps Cinema + ST 2059-2 GM)')">
+        <button class="preset-chip"
+                data-tip-title="Preset: Virtual Production (24 fps Cinema + ST 2059-2 GM)"
+                data-tip-desc="Configures local node as Forced Grandmaster (Priority 1 = 64) on SMPTE ST 2059-2 Domain 1 at True 24.000 fps Non-Drop-Frame over Wired LAN."
+                data-tip-affects="SmpteTimecodeEngine,DualModePtpEngine,UE5 nDisplay LED Wall,Cinema Cameras"
+                onclick="applyStudioPreset('Master','SmpteSt2059_2',1,64,128,'24,1,false',false,'Virtual Production (24 fps Cinema + ST 2059-2 GM)')">
           <svg class="ico" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/></svg>
           Virtual Production (24 fps + ST 2059-2)
         </button>
-        <button class="preset-chip" onclick="applyStudioPreset('AutoBmca','SmpteSt2059_2',1,128,128,'30000,1001,true',false,'Broadcast NTSC (29.97 Drop-Frame + Domain 1)')">
+        <button class="preset-chip"
+                data-tip-title="Preset: Broadcast NTSC (29.97 Drop-Frame + Domain 1)"
+                data-tip-desc="Configures IEEE 1588 Auto-BMCA election on SMPTE ST 2059-2 Domain 1 with 29.97 fps Drop-Frame (30000/1001 DF, semicolon ;)."
+                data-tip-affects="SmpteTimecodeEngine,ST 2059-2 TLV,Broadcast Switchers,NLE Timelines"
+                onclick="applyStudioPreset('AutoBmca','SmpteSt2059_2',1,128,128,'30000,1001,true',false,'Broadcast NTSC (29.97 Drop-Frame + Domain 1)')">
           <svg class="ico" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
           Broadcast NTSC (29.97 DF)
         </button>
-        <button class="preset-chip" onclick="applyStudioPreset('Master','Ieee802_1AsGptp',0,64,128,'10,1,false',false,'LiDAR Array (10 Hz Sweep + IEEE 802.1AS gPTP)')">
+        <button class="preset-chip"
+                data-tip-title="Preset: RoboSense E1R / XGRIDS LiDAR (10 Hz gPTP)"
+                data-tip-desc="Configures IEEE 802.1AS gPTP Layer-2 Peer-to-Peer profile on mandatory Domain 0 at 10.000 Hz LiDAR sweep cadence."
+                data-tip-affects="DualModePtpEngine (Domain 0),RoboSense E1R LiDAR,XGRIDS Scanner,Point-Cloud Timestamping"
+                onclick="applyStudioPreset('Master','Ieee802_1AsGptp',0,64,128,'10,1,false',false,'LiDAR Array (10 Hz Sweep + IEEE 802.1AS gPTP)')">
           <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
           RoboSense / XGRIDS LiDAR (10 Hz gPTP)
         </button>
-        <button class="preset-chip" onclick="applyStudioPreset('AutoBmca','AbuSyncCsptp',1,128,128,'60,1,false',false,'UE5 / NVIDIA Omniverse (60 fps + AbuSync CSPTP)')">
+        <button class="preset-chip"
+                data-tip-title="Preset: Abu Track &amp; Scan / UE5 / Omniverse (60 fps)"
+                data-tip-desc="Configures unprivileged AbuSync CSPTP (UDP 50319/50320) at 60.000 fps to match iOS ARKit 60 Hz camera tracking and Unreal Engine LiveLinkAbuTrack."
+                data-tip-affects="iOS AbuTrack App (60Hz),Windows DesktopSync,UE5 LiveLinkAbuTrack,NVIDIA Omniverse"
+                onclick="applyStudioPreset('AutoBmca','AbuSyncCsptp',1,128,128,'60,1,false',false,'UE5 / Abu Track & Scan (60 fps + AbuSync CSPTP)')">
           <svg class="ico" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-          UE5 &amp; Omniverse (60 fps)
+          Abu Track &amp; Scan / UE5 (60 fps)
         </button>
-        <button class="preset-chip" onclick="applyStudioPreset('Follower','AbuSyncCsptp',1,128,128,'30000,1001,true',true,'Mobile Wi-Fi Follower Rig (AbuSync UDP 50319 + Wi-Fi EMA)')">
+        <button class="preset-chip"
+                data-tip-title="Preset: Mobile Wi-Fi Follower Rig"
+                data-tip-desc="Configures Follower mode on unprivileged UDP 50319/50320 with Wireless Wi-Fi Kalman covariance (R) and outlier gating enabled."
+                data-tip-affects="iOS AbuTrack Wi-Fi Client,Android AbuClock,Kalman Servo R Matrix"
+                onclick="applyStudioPreset('Follower','AbuSyncCsptp',1,128,128,'30000,1001,true',true,'Mobile Wi-Fi Follower Rig (AbuSync UDP 50319 + Wi-Fi EMA)')">
           <svg class="ico" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
           Mobile Wi-Fi Follower Rig
         </button>
@@ -811,7 +970,7 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
               <svg class="ico" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
               Master / Follower &amp; Timing Parameter Settings
             </span>
-            <span class="badge info">LIVE RUST ENGINE</span>
+            <span class="badge info">HOVER ANY PARAMETER FOR GUIDE</span>
           </h2>
 
           <div class="section-divider">
@@ -819,7 +978,9 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
             Network Role, Profile &amp; BMCA Identity
           </div>
           <div class="form-grid">
-            <label>
+            <label data-tip-title="Operating Role (IEEE 1588 BMCA Mode)"
+                   data-tip-desc="Determines whether this PC acts as the studio time authority (Forced Grandmaster), listens to a remote master (Follower Only), or negotiates automatically via IEEE 1588-2019 Best Master Clock Algorithm (Auto BMCA)."
+                   data-tip-affects="DualModePtpEngine,PTP Port State,All Follower Nodes on LAN">
               Operating Role (BMCA Mode)
               <select id="cfg-role">
                 <option value="AutoBmca">Auto (IEEE 1588 BMCA Election)</option>
@@ -827,7 +988,9 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
                 <option value="Follower">Follower Only</option>
               </select>
             </label>
-            <label>
+            <label data-tip-title="Network Synchronization Profile"
+                   data-tip-desc="Selects the wire transport &amp; multicast profile. Use 'AbuSync CSPTP (UDP 50319/50320)' on Windows/macOS/iOS without admin rights, 'SMPTE ST 2059-2' for broadcast genlock, or 'IEEE 802.1AS gPTP' for LiDARs."
+                   data-tip-affects="TimestampedUdpSocket,SmpteSyncMetadataTlv,iOS AbuTrack,RoboSense LiDAR">
               Synchronization Profile
               <select id="cfg-profile">
                 <option value="AbuSyncCsptp">AbuSync Unprivileged CSPTP (UDP 50319/50320)</option>
@@ -836,15 +999,19 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
                 <option value="Aes67Harmonized">AES67 + ST 2059-2 Harmonized (AES-R16)</option>
               </select>
             </label>
-            <label>
+            <label data-tip-title="IEEE 1588 PTP Domain Number (0–127)"
+                   data-tip-desc="Isolates independent timing networks on the same switch. Domain 1 is default for Abu Clock &amp; Abu Track &amp; Scan; Domain 0 is mandatory for IEEE 802.1AS gPTP LiDAR sensors."
+                   data-tip-affects="PtpWireHeader::domain_number,AbuEcosystemDiscoveryBeacon,LAN Multicast">
               PTP Domain (0–127, Default 1)
               <input id="cfg-domain" type="number" min="0" max="127" value="1" />
             </label>
-            <label>
+            <label data-tip-title="BMCA Priority 1 &amp; Priority 2 (0–255)"
+                   data-tip-desc="IEEE 1588-2019 election weights where LOWER numbers win. Priority 1 is evaluated first (e.g. 64 beats default 128). Priority 2 breaks ties when Clock Class and Accuracy are equal."
+                   data-tip-affects="BmcaDataset::compare,Grandmaster Failover Election,Tab 2 BMCA Simulator">
               BMCA Priority 1 / Priority 2
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                <input id="cfg-prio1" type="number" min="0" max="255" value="128" title="BMCA Priority 1 (Lower wins)" />
-                <input id="cfg-prio2" type="number" min="0" max="255" value="128" title="BMCA Priority 2 (Tiebreaker)" />
+                <input id="cfg-prio1" type="number" min="0" max="255" value="128" />
+                <input id="cfg-prio2" type="number" min="0" max="255" value="128" />
               </div>
             </label>
           </div>
@@ -854,7 +1021,9 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
             SMPTE ST 12-1 Timecode &amp; Barrier Cadence
           </div>
           <div class="form-grid">
-            <label>
+            <label data-tip-title="Rational Frame Rate / LiDAR Sweep Cadence"
+                   data-tip-desc="Sets exact rational frame cadence (Num/Den + Drop-Frame flag). Use 60 fps for Abu Track &amp; Scan iOS ARKit + UE5 LiveLink, 29.97 DF for broadcast, 24 fps for cinema, or 10 Hz for LiDAR."
+                   data-tip-affects="SmpteTimecodeEngine,ST 2059-2 TLV (Bytes 12..19),OpenTrackIO,UE5 LiveLink">
               Rational Frame Rate / LiDAR Cadence
               <select id="cfg-fps">
                 <option value="24000,1001,false">23.976 fps (24000/1001 NDF)</option>
@@ -866,27 +1035,33 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
                 <option value="50,1,false">50.000 fps (PAL HFR NDF)</option>
                 <option value="60000,1001,true">59.94 fps Drop-Frame (60000/1001 DF)</option>
                 <option value="60000,1001,false">59.94 fps Non-Drop (60000/1001 NDF)</option>
-                <option value="60,1,false">60.000 fps (UE5 / Omniverse NDF)</option>
+                <option value="60,1,false">60.000 fps (UE5 / Abu Track &amp; Scan NDF)</option>
                 <option value="120,1,false">120.000 fps (High-Frame-Rate Slate)</option>
                 <option value="10,1,false">10.000 Hz (RoboSense E1R / XGRIDS LiDAR)</option>
               </select>
             </label>
-            <label>
+            <label data-tip-title="User Phase Trim Offset (Nanoseconds)"
+                   data-tip-desc="Applies a deterministic nanosecond phase shift to synthesized timecode &amp; sub-frame phase (φ) to compensate for camera sensor readout delay, LED wall scanout lag, or DSLR hot-shoe latency."
+                   data-tip-affects="SmpteTimecodeEngine::user_offset_ns,Sub-Frame Phase (φ),DSLR sync_photos.py">
               User Phase Trim Offset (ns)
               <input id="cfg-offset-ns" type="number" step="100" value="0" />
             </label>
-            <label>
+            <label data-tip-title="Barrier Trigger Lead Time (ΔT_lead in ms)"
+                   data-tip-desc="Future scheduling horizon for SCHEDULE_CAPTURE_AT (T_exec = T_now + ΔT_lead). Must exceed worst-case network transit time (50 ms recommended for mixed LAN + Wi-Fi rigs) so all cameras spin-wait and fire simultaneously."
+                   data-tip-affects="AbuScanCoordinator,iOS AbuTrack Shutter,Windows Rig,Multi-Camera Barrier">
               Barrier Trigger Lead Time (ms)
               <input id="cfg-lead-ms" type="number" min="2" max="2000" value="50" />
             </label>
-            <label>
+            <label data-tip-title="Network Medium &amp; Display Wake-Lock"
+                   data-tip-desc="Selects Wired LAN (<100 ns lock target, low R covariance) vs. Wi-Fi (<500 µs lock target, aggressive spike filter) and keeps the studio slate screen awake."
+                   data-tip-affects="OverlayClock::discipline_from_network_sample,iOS Wi-Fi Sync,Optical Slate">
               Network Medium &amp; Wake-Lock
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                <select id="cfg-wireless" title="Transport Medium">
+                <select id="cfg-wireless">
                   <option value="false">Wired LAN (&lt;100ns)</option>
                   <option value="true">Wi-Fi (&lt;500&mu;s)</option>
                 </select>
-                <select id="cfg-wakelock" title="Screen Wake-Lock">
+                <select id="cfg-wakelock">
                   <option value="true">Wake-Lock ON</option>
                   <option value="false">Wake-Lock OFF</option>
                 </select>
@@ -895,11 +1070,17 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
           </div>
 
           <div class="btn-row">
-            <button class="btn primary" onclick="applyConfig()">
+            <button class="btn primary" onclick="applyConfig()"
+                    data-tip-title="Apply Settings to Live Rust Engine"
+                    data-tip-desc="Commits all parameters above directly to the running Rust GuiAppController, updates the 20-byte SMPTE ST 2059-2 TLV, and broadcasts an updated PTP Announce packet."
+                    data-tip-affects="GuiAppController,SmpteTimecodeEngine,DualModePtpEngine,All Connected Nodes">
               <svg class="ico" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
               Apply Settings to Rust Engine
             </button>
-            <button id="btn-autosync" class="btn emerald" onclick="clockAction('toggle_autosync', 'Toggled 8 Hz Live Servo Stream')">
+            <button id="btn-autosync" class="btn emerald" onclick="clockAction('toggle_autosync', 'Toggled 8 Hz Live Servo Stream')"
+                    data-tip-title="8 Hz (125 ms) Live Kalman Auto-Sync Stream"
+                    data-tip-desc="Toggles the continuous 8 Hz background PTP/CSPTP servo loop (logMessageInterval = -3 per SMPTE ST 2059-2). Pause this if you want to inspect static fault states."
+                    data-tip-affects="Background Servo Thread,Live Oscilloscope,UDP TX/RX Counters">
               <svg class="ico" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
               <span id="btn-autosync-text">8 Hz Auto-Sync Stream: ON</span>
             </button>
@@ -913,31 +1094,46 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
               <svg class="ico" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
               2-State Kalman PLL &amp; 7.0s ST 2059 Warm-Up Gate
             </span>
-            <span id="kalman-gate-label" class="badge Locked">7.0S WARM-UP: 100%</span>
+            <span id="kalman-gate-label" class="badge Locked"
+                  data-tip-title="SMPTE ST 2059-2 Mandatory 7.0-Second Warm-Up Gate"
+                  data-tip-desc="SMPTE ST 2059-2 requires a follower clock to continuously discipline for at least 7.0 seconds before declaring LOCKED and enabling production capture."
+                  data-tip-affects="OverlayClock::lock_state,AbuScanCoordinator Capture Gate">7.0S WARM-UP: 100%</span>
           </h2>
           <div class="kpi-grid">
-            <div class="kpi-box">
+            <div class="kpi-box"
+                 data-tip-title="Kalman State 1: Phase Offset (θ in nanoseconds)"
+                 data-tip-desc="Instantaneous phase error between local OverlayClock and the Master reference. Target is < 100 ns on Wired LAN and < 500 µs on Wi-Fi."
+                 data-tip-affects="OverlayClock::theta_phase,Sensor Capture Jitter,Live Oscilloscope">
               <div class="kpi-label">
                 <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 Phase Offset (&theta;)
               </div>
               <div id="kpi-offset" class="kpi-val">0 ns</div>
             </div>
-            <div class="kpi-box">
+            <div class="kpi-box"
+                 data-tip-title="Kalman State 2: Crystal Frequency Drift (α in ppb)"
+                 data-tip-desc="Estimated oscillator frequency skew in parts-per-billion (ns/sec). Allows OverlayClock to maintain sub-microsecond accuracy even during network Holdover!"
+                 data-tip-affects="OverlayClock::alpha_freq,Holdover Coasting,iOS/DSLR Drift Elimination">
               <div class="kpi-label">
                 <svg class="ico" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
                 Crystal Drift (&alpha;)
               </div>
               <div id="kpi-drift" class="kpi-val">0.00 ppb</div>
             </div>
-            <div class="kpi-box">
+            <div class="kpi-box"
+                 data-tip-title="Symmetric One-Way Network Path Delay (d)"
+                 data-tip-desc="Measured one-way transit delay ((T4 - T1) - (T3 - T2)) / 2 across Ethernet (~380 ns) or Wi-Fi (~2,400+ ns)."
+                 data-tip-affects="PTP Delay_Req/Delay_Resp,Wi-Fi Asymmetry Rejection">
               <div class="kpi-label">
                 <svg class="ico" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 One-Way Delay (d)
               </div>
               <div id="kpi-delay" class="kpi-val">380 ns</div>
             </div>
-            <div class="kpi-box">
+            <div class="kpi-box"
+                 data-tip-title="Kalman Posterior Error Variance (P_00 in ns²)"
+                 data-tip-desc="Statistical uncertainty of the phase estimate in square nanoseconds. Shrinks rapidly during the 7.0s warm-up window as 8 Hz samples arrive."
+                 data-tip-affects="Kalman Gain (K),Lock Confidence">
               <div class="kpi-label">
                 <svg class="ico" viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
                 Kalman Variance
@@ -947,7 +1143,10 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
           </div>
 
           <!-- Live SVG Oscilloscope -->
-          <div style="background:#050811;border:1px solid var(--border);border-radius:9px;padding:10px;">
+          <div style="background:#050811;border:1px solid var(--border);border-radius:9px;padding:10px;"
+               data-tip-title="Real-Time Phase Offset Oscilloscope (40-Sample Window)"
+               data-tip-desc="Plots the last 40 Kalman phase offset measurements (θ in ns) at 8 Hz. Watch perturbations decay smoothly back to the zero-error center line."
+               data-tip-affects="Visual Servo Diagnostics">
             <div style="display:flex;justify-content:space-between;font-size:0.74rem;color:var(--muted);margin-bottom:4px;">
               <span>Live Phase Offset Oscilloscope (&theta; in ns, 40-sample sliding window)</span>
               <span id="osc-latest-text" style="color:var(--cyan);font-weight:700;">Latest: 0 ns</span>
@@ -964,27 +1163,45 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
             <span>Interactive Clock Discipline &amp; Fault Injection Test Bench</span>
           </h3>
           <div class="btn-row">
-            <button class="btn emerald" onclick="clockAction('tick_clean', 'Injected Clean Wired PTP Sample (±9 ns)')">
+            <button class="btn emerald" onclick="clockAction('tick_clean', 'Injected Clean Wired PTP Sample (±9 ns)')"
+                    data-tip-title="Inject Clean Wired PTP Sample (±9 ns)"
+                    data-tip-desc="Feeds a low-jitter Gigabit Ethernet PTP measurement (path delay 360 ns) into the Rust Kalman servo."
+                    data-tip-affects="OverlayClock::discipline_from_network_sample,Oscilloscope">
               <svg class="ico" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
               Inject Clean PTP Tick (&plusmn;9 ns)
             </button>
-            <button class="btn amber" onclick="clockAction('tick_wifi', 'Injected Wi-Fi Delay Spike (+1,850 ns)')">
+            <button class="btn amber" onclick="clockAction('tick_wifi', 'Injected Wi-Fi Delay Spike (+1,850 ns)')"
+                    data-tip-title="Inject Wireless Wi-Fi Delay Spike (+1,850 ns)"
+                    data-tip-desc="Simulates a Wi-Fi CSMA/CA packet queuing spike (4.2 µs delay) to demonstrate Kalman high-R damping."
+                    data-tip-affects="OverlayClock Wireless Filter,Oscilloscope">
               <svg class="ico" viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
               Inject Wi-Fi Spike (+1,850 ns)
             </button>
-            <button class="btn amber" onclick="clockAction('step_50us', 'Injected +50 µs Phase Disturbance')">
+            <button class="btn amber" onclick="clockAction('step_50us', 'Injected +50 µs Phase Disturbance')"
+                    data-tip-title="Inject +50 µs (+50,000 ns) Phase Disturbance"
+                    data-tip-desc="Applies a sudden 50-microsecond network phase disturbance so you can watch the 8 Hz Kalman PLL exponentially slew back to zero without stepping the clock."
+                    data-tip-affects="OverlayClock Slew Limiter,Oscilloscope">
               <svg class="ico" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               Inject +50 &mu;s Disturbance
             </button>
-            <button class="btn primary" onclick="clockAction('fast_forward_7s', 'Completed 7.0s ST 2059 Warm-Up Gate -> LOCKED')">
+            <button class="btn primary" onclick="clockAction('fast_forward_7s', 'Completed 7.0s ST 2059 Warm-Up Gate -> LOCKED')"
+                    data-tip-title="Fast-Forward 7.0s ST 2059 Warm-Up (64 Servo Ticks)"
+                    data-tip-desc="Executes 64 closed-loop 8 Hz discipline iterations (8.0 simulated seconds) to immediately complete the 7.0s warm-up gate and lock below 100 ns."
+                    data-tip-affects="OverlayClock::lock_state -> Locked,8Hz Auto-Sync Stream">
               <svg class="ico" viewBox="0 0 24 24"><polygon points="13 19 22 12 13 5 13 19"/><polygon points="2 19 11 12 2 5 2 19"/></svg>
               Fast-Forward 7.0s Warm-Up (Converge &amp; Lock)
             </button>
-            <button class="btn" onclick="clockAction('holdover', 'Entered Oscillator Holdover State')">
+            <button class="btn" onclick="clockAction('holdover', 'Entered Oscillator Holdover State')"
+                    data-tip-title="Simulate Oscillator Holdover Mode"
+                    data-tip-desc="Pauses incoming network packets and coasts on the learned crystal drift (α_freq) to test graceful degradation when a cable is unplugged."
+                    data-tip-affects="OverlayClock::lock_state -> Locking/Holdover">
               <svg class="ico" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
               Simulate Holdover
             </button>
-            <button class="btn rose" onclick="clockAction('unlock', 'Simulated Clock Unlock Fault')">
+            <button class="btn rose" onclick="clockAction('unlock', 'Simulated Clock Unlock Fault')"
+                    data-tip-title="Simulate Clock Unlock Fault (+1.5 ms Error)"
+                    data-tip-desc="Forces a 1.5 ms phase error to trigger the red UNLOCKED alarm state and pause auto-sync until re-converged."
+                    data-tip-affects="OverlayClock::lock_state -> Unlocked,Capture Safety Interlock">
               <svg class="ico" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               Simulate Unlock Fault
             </button>
@@ -1010,30 +1227,41 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
             <code>DualModePtpEngine</code> transitions to <code>SLAVE</code> and automatically locks to the remote SMPTE frame rate.
           </p>
           <div class="form-grid">
-            <label>
+            <label data-tip-title="Remote Grandmaster Priority 1 (0–255)"
+                   data-tip-desc="Primary IEEE 1588 BMCA comparison field advertised by the remote node. If Remote Priority 1 < Local Priority 1, this PC automatically transitions to SLAVE."
+                   data-tip-affects="DualModePtpEngine::process_announce,Port State (MASTER/SLAVE)">
               Remote Priority 1 (e.g. 64 beats 128)
               <input id="bmca-prio1" type="number" min="0" max="255" value="64" />
             </label>
-            <label>
+            <label data-tip-title="Remote PTP Clock Class (1–255)"
+                   data-tip-desc="IEEE 1588 quality tier of the remote clock: Class 6 = GNSS/Atomic Primary Reference, Class 7 = Holdover, Class 248 = Default uncalibrated node."
+                   data-tip-affects="BmcaDataset::compare,Grandmaster Selection">
               Remote Clock Class (6 = GNSS GM, 248 = Default)
               <input id="bmca-class" type="number" min="1" max="255" value="6" />
             </label>
-            <label>
+            <label data-tip-title="Remote Grandmaster Priority 2 (0–255)"
+                   data-tip-desc="Tie-breaker priority evaluated when Priority 1, Clock Class, and Clock Accuracy are identical between two nodes."
+                   data-tip-affects="BmcaDataset::compare">
               Remote Priority 2
               <input id="bmca-prio2" type="number" min="0" max="255" value="128" />
             </label>
-            <label>
+            <label data-tip-title="Remote Advertised SMPTE ST 2059-2 Frame Rate"
+                   data-tip-desc="Rational frame rate embedded inside the remote node's 20-byte SMPTE ST 2059-2 TLV. If the remote node wins BMCA, Abu Clock automatically switches its Master Slate to this rate!"
+                   data-tip-affects="SmpteTimecodeEngine,Master Digital Slate,Follower Auto-Rate Lock">
               Remote Advertised ST 2059-2 Frame Rate
               <select id="bmca-fps">
                 <option value="24,1,false">24.000 fps (True Cinema NDF)</option>
                 <option value="25,1,false">25.000 fps (PAL Broadcast NDF)</option>
                 <option value="30000,1001,true">29.97 fps Drop-Frame (DF)</option>
-                <option value="60,1,false">60.000 fps (UE5 / Omniverse NDF)</option>
+                <option value="60,1,false">60.000 fps (UE5 / Abu Track &amp; Scan NDF)</option>
               </select>
             </label>
           </div>
           <div class="btn-row">
-            <button class="btn primary" onclick="runBmcaTest()">
+            <button class="btn primary" onclick="runBmcaTest()"
+                    data-tip-title="Inject Remote Announce &amp; Execute BMCA"
+                    data-tip-desc="Synthesizes a wire-level IEEE 1588 Announce message + 20-byte SMPTE ST 2059-2 TLV and runs DualModePtpEngine::process_announce()."
+                    data-tip-affects="PTP Port State,Active Frame Rate,BMCA Audit Log">
               <svg class="ico" viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
               Inject Remote Announce &amp; Run BMCA Election
             </button>
@@ -1048,7 +1276,10 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
               <svg class="ico" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
               Live SMPTE ST 2059-2 Synchronization Metadata TLV Inspector
             </span>
-            <span class="badge Locked">20 Bytes Big-Endian</span>
+            <span class="badge Locked"
+                  data-tip-title="20-Byte SMPTE ST 2059-2 Organization Extension TLV"
+                  data-tip-desc="Appended to PTP Announce packets so every camera, UE5 node, and audio recorder automatically learns TAI-UTC offset (+37s), rational frame rate, and Drop-Frame status."
+                  data-tip-affects="PtpWireMessage::Announce,Broadcast Genlock Receivers">20 Bytes Big-Endian</span>
           </h2>
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <span style="font-size:0.81rem;color:var(--muted);">
@@ -1093,18 +1324,27 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
               <svg class="ico" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               Multi-Sensor Barrier Trigger (<code>SCHEDULE_CAPTURE_AT</code>)
             </span>
-            <span class="badge Locked">Sub-50&mu;s Spinlock</span>
+            <span class="badge Locked"
+                  data-tip-title="Hybrid Coarse-Sleep + 500 µs Hardware Spinlock"
+                  data-tip-desc="Instead of firing on UDP packet arrival (which suffers from 1–15 ms Wi-Fi jitter), every node sleeps until T_exec - 500 µs and spins on QPC / mach_continuous_time to fire within < 50 µs."
+                  data-tip-affects="iOS AbuTrack Camera,Windows DSLR Rig,RoboSense LiDAR,UE5 Take Recorder">Sub-50&mu;s Spinlock</span>
           </h2>
           <p style="font-size:0.81rem;color:var(--muted);margin-top:0;">
             Eliminates Wi-Fi/LAN packet transit jitter by broadcasting a future target TAI nanosecond ($T_{\text{now}} + \Delta T_{\text{lead}}$).
             Every rig sleeps until $T_{\text{exec}} - 500\ \mu\text{s}$ and spins on its hardware monotonic counter to trigger at the exact same instant.
           </p>
           <div class="btn-row">
-            <button class="btn primary" onclick="fireTrigger('single', 1)">
+            <button class="btn primary" onclick="fireTrigger('single', 1)"
+                    data-tip-title="Fire Single Synchronized Barrier Capture (+Lead Time)"
+                    data-tip-desc="Broadcasts SCHEDULE_CAPTURE_AT for T_now + LeadTime, collects jitter receipts from iOS, Windows, LiDAR, and UE5 rigs, and appends to .abuscan.json."
+                    data-tip-affects="AbuScanCoordinator,All Rig Shutters,.abuscan.json Manifest">
               <svg class="ico" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               Fire SCHEDULE_CAPTURE_AT (+Lead Time)
             </button>
-            <button class="btn emerald" onclick="fireTrigger('burst', 5)">
+            <button class="btn emerald" onclick="fireTrigger('burst', 5)"
+                    data-tip-title="Schedule 5-Frame Synchronized Interval Burst Scan"
+                    data-tip-desc="Schedules a 5-frame continuous burst locked to the active rational frame rate cadence for 4D volumetric / 3D Gaussian Splatting capture."
+                    data-tip-affects="AbuScanCoordinator::schedule_interval_scan,4DGS / Postshot Pipeline">
               <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               Schedule 5-Frame Synchronized Burst Scan
             </button>
@@ -1129,43 +1369,93 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
           <h2>
             <span class="card-title-left">
               <svg class="ico" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-              6-DoF Camera Tracking Telemetry (OpenTrackIO &amp; FreeD)
+              6-DoF Camera Telemetry (AbuTrack &amp; Scan, FreeD &amp; OpenTrackIO)
             </span>
             <span id="telem-seq-badge" class="badge info">SEQ #1</span>
           </h2>
           <div class="form-grid">
-            <label>Camera ID (0–255)<input id="pose-cam" type="number" value="1" /></label>
-            <label>Pan (&deg;)<input id="pose-pan" type="number" step="0.5" value="12.5" /></label>
-            <label>Tilt (&deg;)<input id="pose-tilt" type="number" step="0.5" value="-4.25" /></label>
-            <label>Roll (&deg;)<input id="pose-roll" type="number" step="0.25" value="0.15" /></label>
-            <label>Pos X (mm)<input id="pose-x" type="number" step="10" value="1250" /></label>
-            <label>Pos Y (mm)<input id="pose-y" type="number" step="10" value="-400" /></label>
-            <label>Pos Z (mm)<input id="pose-z" type="number" step="10" value="1700" /></label>
-            <label>Lens Zoom / Focus<input id="pose-zoom" type="number" value="2048" /></label>
+            <label data-tip-title="Camera ID (0–255)"
+                   data-tip-desc="Unique camera tracker identifier embedded in byte 1 of FreeD (0xD1/0xD2) and source_id of OpenTrackIO."
+                   data-tip-affects="FreeDPacket,OpenTrackIoPayload,UE5 LiveLink Subject">Camera ID (0–255)<input id="pose-cam" type="number" value="1" /></label>
+            <label data-tip-title="Pan / Yaw Angle (Degrees)"
+                   data-tip-desc="Horizontal camera rotation (-180° to +180°). Encoded as 24-bit fixed-point (deg * 32768) in FreeD and float rotation[1] in AbuTrack LiveLink JSON."
+                   data-tip-affects="FreeD Bytes 2..4,AbuTrack LiveLink JSON,OpenTrackIO">Pan (&deg;)<input id="pose-pan" type="number" step="0.5" value="12.5" /></label>
+            <label data-tip-title="Tilt / Pitch Angle (Degrees)"
+                   data-tip-desc="Vertical camera pitch (-90° to +90°). Encoded as 24-bit fixed-point (deg * 32768) in FreeD and float rotation[0] in AbuTrack LiveLink JSON."
+                   data-tip-affects="FreeD Bytes 5..7,AbuTrack LiveLink JSON,OpenTrackIO">Tilt (&deg;)<input id="pose-tilt" type="number" step="0.5" value="-4.25" /></label>
+            <label data-tip-title="Roll Angle (Degrees)"
+                   data-tip-desc="Camera horizon roll (-180° to +180°). Encoded as 24-bit fixed-point (deg * 32768) in FreeD and float rotation[2] in AbuTrack LiveLink JSON."
+                   data-tip-affects="FreeD Bytes 8..10,AbuTrack LiveLink JSON,OpenTrackIO">Roll (&deg;)<input id="pose-roll" type="number" step="0.25" value="0.15" /></label>
+            <label data-tip-title="Position X (Millimeters)"
+                   data-tip-desc="Camera X translation in mm (encoded as mm * 64 in 24-bit FreeD, converted to meters in AbuTrack LiveLink JSON &amp; COLMAP)."
+                   data-tip-affects="FreeD Bytes 11..13,AbuTrack LiveLink JSON,COLMAP images.txt">Pos X (mm)<input id="pose-x" type="number" step="10" value="1250" /></label>
+            <label data-tip-title="Position Y (Millimeters)"
+                   data-tip-desc="Camera Y translation in mm (encoded as mm * 64 in 24-bit FreeD, converted to meters in AbuTrack LiveLink JSON &amp; COLMAP)."
+                   data-tip-affects="FreeD Bytes 14..16,AbuTrack LiveLink JSON,COLMAP images.txt">Pos Y (mm)<input id="pose-y" type="number" step="10" value="-400" /></label>
+            <label data-tip-title="Position Z (Millimeters)"
+                   data-tip-desc="Camera Z height/depth in mm (encoded as mm * 64 in 24-bit FreeD, converted to meters in AbuTrack LiveLink JSON &amp; COLMAP)."
+                   data-tip-affects="FreeD Bytes 17..19,AbuTrack LiveLink JSON,COLMAP images.txt">Pos Z (mm)<input id="pose-z" type="number" step="10" value="1700" /></label>
+            <label data-tip-title="Lens Zoom / Focus Encoder (24-bit)"
+                   data-tip-desc="Unsigned 24-bit optical lens encoder counts (0..16777215) packed into FreeD bytes 20..25 for UE5 CineCamera focal length &amp; focus distance."
+                   data-tip-affects="FreeD Bytes 20..25,UE5 CineCameraComponent">Lens Zoom / Focus<input id="pose-zoom" type="number" value="2048" /></label>
           </div>
           <div class="btn-row">
-            <button class="btn primary" onclick="updateTelemetryPose()">
+            <button class="btn primary" onclick="updateTelemetryPose()"
+                    data-tip-title="Synthesize All 4 Telemetry Wire Formats"
+                    data-tip-desc="Immediately packs the 6-DoF pose + current SMPTE timecode + TAI nanoseconds into 29B FreeD, 37B AbuTrack FreeD, 41B FreeD-TC, OpenTrackIO, and AbuTrack LiveLink JSON."
+                    data-tip-affects="FreeDPacket,OpenTrackIoPacket,AbuTrackLiveLinkPacket">
               <svg class="ico" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-              Synthesize OpenTrackIO &amp; FreeD Packets
+              Synthesize OpenTrackIO, FreeD (29B/37B/41B) &amp; AbuTrack JSON
             </button>
           </div>
           <h3>
-            <span>Standard 29-Byte FreeD (<code>0xD1</code>) + Checksum</span>
+            <span>1. Standard 29-Byte FreeD (<code>0xD1</code>) + Checksum</span>
             <button class="btn sm" onclick="copyElementText('freed-d1-box', 'Copied 29-byte FreeD 0xD1 hex')">Copy</button>
           </h3>
           <pre id="freed-d1-box" class="code-box"></pre>
           <h3>
-            <span>Extended 41-Byte AbuTrack FreeD-TC (<code>0xD2</code>)</span>
+            <span>2. Abu Track &amp; Scan 37-Byte Extended FreeD (<code>0xD1</code> + 8B <code>int64_ms</code>)</span>
+            <button class="btn sm" onclick="copyElementText('freed-37b-box', 'Copied 37-byte AbuTrack FreeD hex')">Copy</button>
+          </h3>
+          <pre id="freed-37b-box" class="code-box"></pre>
+          <h3>
+            <span>3. Extended 41-Byte AbuClock FreeD-TC (<code>0xD2</code> + 4B BCD + 8B TAI ns)</span>
             <button class="btn sm" onclick="copyElementText('freed-d2-box', 'Copied 41-byte FreeD-TC 0xD2 hex')">Copy</button>
           </h3>
           <pre id="freed-d2-box" class="code-box"></pre>
           <h3>
-            <span>SMPTE RIS OpenTrackIO (<code>OTrk</code>) JSON Payload</span>
-            <button class="btn sm" onclick="copyElementText('otrk-json-box', 'Copied OpenTrackIO JSON')">Copy</button>
+            <span>4. Enriched <code>Abu Track &amp; Scan</code> Live Link JSON (<code>UDP 8080</code>) &amp; OpenTrackIO (<code>OTrk</code>)</span>
+            <button class="btn sm" onclick="copyElementText('otrk-json-box', 'Copied AbuTrack & OpenTrackIO JSON')">Copy</button>
           </h3>
           <pre id="otrk-json-box" class="code-box"></pre>
         </section>
       </div>
+
+      <!-- Abu Ecosystem Auto-Discovery Mesh Card -->
+      <section class="card" style="margin-top:16px;">
+        <h2>
+          <span class="card-title-left">
+            <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            Abu Ecosystem Node Discovery &amp; Synchronization Mesh (<code>UDP 50320</code> &amp; <code>/api/ecosystem/discover</code>)
+          </span>
+          <span class="badge Locked">iOS + PC + UE5 + Master Clock</span>
+        </h2>
+        <p style="font-size:0.81rem;color:var(--muted);margin-top:0;">
+          All applications in the <strong>Abu Ecosystem</strong> (<strong>Abu Track &amp; Scan iOS App</strong>, <strong>Windows DesktopSync Workstation</strong>, <strong>UE5 LiveLinkAbuTrack Plugin</strong>, and <strong>Abu Clock Master</strong>) automatically discover each other via UDP port <code>50320</code> (<code>ABU_ECO_V1</code> beacon + RFC 4330 48-byte SNTPv4 responder) and HTTP <code>GET /api/ecosystem/discover</code>.
+        </p>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Ecosystem Node</th>
+              <th>Platform / Engine</th>
+              <th>Endpoint &amp; Ports</th>
+              <th>Active Protocols</th>
+              <th>Sync / Offset</th>
+            </tr>
+          </thead>
+          <tbody id="ecosystem-nodes-body"></tbody>
+        </table>
+      </section>
 
       <!-- Session Manifest Exporter -->
       <section class="card" style="margin-top:16px;">
@@ -1177,9 +1467,18 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
           <span class="badge info">RealityCapture / 3DGS / Postshot Ready</span>
         </h2>
         <div class="btn-row" style="margin-top:0;margin-bottom:10px;">
-          <input id="manifest-sensor" type="text" value="SonyA1_Rig03" style="width:180px;" placeholder="Sensor ID" />
-          <input id="manifest-ext" type="text" value="arw" style="width:80px;" placeholder="Ext" />
-          <button class="btn emerald" onclick="addManifestRecord()">
+          <input id="manifest-sensor" type="text" value="SonyA1_Rig03" style="width:180px;" placeholder="Sensor ID"
+                 data-tip-title="Manifest Sensor Identifier"
+                 data-tip-desc="Unique camera or LiDAR name embedded into deterministic filenames (<SensorID>_<HHMMSSFF>_<TAI_ns>.<ext>) and .abuscan.json."
+                 data-tip-affects=".abuscan.json,COLMAP images.txt,sync_photos.py" />
+          <input id="manifest-ext" type="text" value="arw" style="width:80px;" placeholder="Ext"
+                 data-tip-title="Capture File Extension"
+                 data-tip-desc="RAW or raster file extension (e.g. dng, arw, cr3, exr, pcd) for deterministic session manifest records."
+                 data-tip-affects=".abuscan.json,Abu Color RAW Pipeline" />
+          <button class="btn emerald" onclick="addManifestRecord()"
+                  data-tip-title="Stamp &amp; Append Sensor Capture Record"
+                  data-tip-desc="Reads the current TAI nanosecond timestamp, synthesizes SMPTE ST 12-1 timecode + 6-DoF pose, and appends an entry to .abuscan.json and COLMAP images.txt."
+                  data-tip-affects="AbuScanSessionManifest,COLMAP / 3DGS Reconstruction">
             <svg class="ico" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Stamp &amp; Append Sensor Capture to Manifest
           </button>
@@ -1219,29 +1518,47 @@ pub const INDEX_HTML: &str = r##"<!DOCTYPE html>
             hardware Grandmaster appliance (<code>abu-daemon --appliance-mode</code>).
           </p>
           <div class="kpi-grid">
-            <div class="kpi-box">
+            <div class="kpi-box"
+                 data-tip-title="IEEE 1588 PTP Clock Class (6 vs 7)"
+                 data-tip-desc="Class 6 indicates a Primary Reference Time Clock locked to GNSS/TCXO. Class 7 indicates Holdover mode backed by the Maxim DS3231 ±2 ppm TCXO."
+                 data-tip-affects="BMCA Election Priority,Studio Followers">
               <div class="kpi-label">PTP Clock Class</div>
               <div id="app-class" class="kpi-val">Class 6</div>
             </div>
-            <div class="kpi-box">
+            <div class="kpi-box"
+                 data-tip-title="IEEE 1588 Clock Accuracy Code"
+                 data-tip-desc="0x20 indicates time accuracy within < 25 ns (Hardware PHC locked); 0x21 indicates < 100 ns during TCXO holdover."
+                 data-tip-affects="PtpWireMessage::Announce,BMCA Dataset">
               <div class="kpi-label">Clock Accuracy</div>
               <div id="app-acc" class="kpi-val">0x20 (&lt;25ns)</div>
             </div>
-            <div class="kpi-box">
+            <div class="kpi-box"
+                 data-tip-title="Linux Real-Time Scheduler Policy (SCHED_FIFO 80)"
+                 data-tip-desc="Pins the PTP/gPTP packet timestamping thread to isolated CPU cores (isolcpus=2,3) with SCHED_FIFO priority 80 and mlockall() to eliminate OS page-fault jitter."
+                 data-tip-affects="Linux Appliance Kernel Latency">
               <div class="kpi-label">Linux RT Priority</div>
               <div id="app-fifo" class="kpi-val">SCHED_FIFO 80</div>
             </div>
-            <div class="kpi-box">
+            <div class="kpi-box"
+                 data-tip-title="IERS TAI Minus UTC Leap-Second Offset (+37s)"
+                 data-tip-desc="Hardware PTP clocks count monotonic International Atomic Time (TAI). +37 seconds is added to UTC to avoid leap-second discontinuities."
+                 data-tip-affects="SmpteSyncMetadataTlv,SntpResponder,PHC Seeding">
               <div class="kpi-label">TAI - UTC Offset</div>
               <div id="app-tai-offset" class="kpi-val">+37 sec</div>
             </div>
           </div>
           <div class="btn-row">
-            <button class="btn emerald" onclick="setApplianceLock(true)">
+            <button class="btn emerald" onclick="setApplianceLock(true)"
+                    data-tip-title="Lock Appliance to Primary GNSS / TCXO (Class 6)"
+                    data-tip-desc="Restores Primary Reference Clock Class 6 and 0x20 (< 25 ns) accuracy advertisement across eth0 and eth1."
+                    data-tip-affects="ApplianceStatusSnapshot,BMCA Election">
               <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               Lock Primary Reference (GNSS / DS3231 TCXO &rarr; Class 6)
             </button>
-            <button class="btn amber" onclick="setApplianceLock(false)">
+            <button class="btn amber" onclick="setApplianceLock(false)"
+                    data-tip-title="Simulate GNSS Antenna Loss / TCXO Holdover (Class 7)"
+                    data-tip-desc="Transitions the appliance to Class 7 Holdover backed by the battery-maintained Maxim DS3231 ±2 ppm TCXO."
+                    data-tip-affects="ApplianceStatusSnapshot,BMCA Failover">
               <svg class="ico" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
               Simulate Antenna Loss / Holdover Mode (TCXO Holdover &rarr; Class 7)
             </button>
@@ -1563,32 +1880,33 @@ print("Live SMPTE:", client.now_smpte(), "| Locked:", client.status())</pre>
             <h2>
               <span class="card-title-left">
                 <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-                Local HTTP JSON Control API (<code>127.0.0.1:7878</code>)
+                MCP Server (<code>abu-clock-mcp</code>) &amp; Local HTTP API (<code>127.0.0.1:7878</code>)
               </span>
-              <span class="badge Locked">CORS Enabled</span>
+              <span class="badge Locked">AI Agent &amp; Ecosystem Ready</span>
             </h2>
             <p style="font-size:0.81rem;color:#cbd5e1;margin-top:0;">
-              External scripts, StreamDeck buttons, or studio automation tools can query and control the running <strong>Abu Clock</strong> PC application via REST JSON:
+              <strong>AI Agents</strong> (in <em>Abu Track &amp; Scan</em> or any Antigravity workspace) can invoke <code>abu-clock</code> MCP tools directly, and apps on the LAN can query REST JSON or UDP port <code>50320</code>:
             </p>
             <table class="data-table">
               <thead>
-                <tr><th>Endpoint</th><th>Method</th><th>Description</th></tr>
+                <tr><th>Endpoint / MCP Tool</th><th>Type</th><th>Description</th></tr>
               </thead>
               <tbody>
-                <tr><td><code>/api/state</code></td><td>GET</td><td>Full snapshot of Clock, SMPTE, PTP TLV, Receipts &amp; Manifests</td></tr>
-                <tr><td><code>/api/config</code></td><td>POST</td><td>Update Role, Profile, Domain, FrameRate, Trim &amp; Lead Time</td></tr>
-                <tr><td><code>/api/clock</code></td><td>POST</td><td>Inject PTP samples, fast-forward 7s gate, or toggle 8Hz auto-sync</td></tr>
-                <tr><td><code>/api/bmca</code></td><td>POST</td><td>Inject remote Announce frame &amp; trigger IEEE 1588 BMCA election</td></tr>
-                <tr><td><code>/api/trigger</code></td><td>POST</td><td>Broadcast <code>SCHEDULE_CAPTURE_AT</code> single or burst trigger</td></tr>
-                <tr><td><code>/api/telemetry</code></td><td>POST</td><td>Update 6-DoF camera pose &amp; synthesize OpenTrackIO / FreeD</td></tr>
-                <tr><td><code>/api/manifest</code></td><td>POST</td><td>Append synchronized sensor record to <code>.abuscan.json</code></td></tr>
+                <tr><td><code>abu_clock_get_status</code></td><td>MCP</td><td>Live TAI ns, SMPTE TC, BCD, Kalman offset/drift &amp; lock state</td></tr>
+                <tr><td><code>abu_clock_discover_nodes</code></td><td>MCP</td><td>Auto-discover iOS, Windows DesktopSync, UE5 &amp; Master Clock</td></tr>
+                <tr><td><code>abu_clock_pack_telemetry</code></td><td>MCP</td><td>Pack 6-DoF pose into AbuTrack JSON, 29B/37B/41B FreeD &amp; OTrk</td></tr>
+                <tr><td><code>abu_clock_get_integration_guide</code></td><td>MCP</td><td>Returns Swift, Python &amp; UE5 C++ code for <em>Abu Track &amp; Scan</em></td></tr>
+                <tr><td><code>/api/ecosystem/discover</code></td><td>GET</td><td>Returns full <code>AbuEcosystemDiscoveryBeacon</code> &amp; node mesh</td></tr>
+                <tr><td><code>/api/ecosystem/register</code></td><td>POST</td><td>Registers/heartbeats an iOS, PC, or UE5 ecosystem node</td></tr>
+                <tr><td><code>/api/sntp</code> (or UDP <code>50320</code>)</td><td>GET/UDP</td><td>RFC 4330 48B SNTPv4 Stratum-1 responder for <code>NTPSyncClient.swift</code></td></tr>
+                <tr><td><code>/api/state</code> &amp; <code>/api/config</code></td><td>GET/POST</td><td>Full studio state snapshot &amp; live parameter configuration</td></tr>
               </tbody>
             </table>
             <h3>Repository Documentation Files</h3>
-            <pre class="code-box">docs/USER_MANUAL.md              # Complete Studio Operator Manual
-docs/DEVELOPER_GUIDE.md          # Complete Developer &amp; SDK Integration Guide
-docs/ABU_CLOCK_USER_GUIDE.md     # Fundamentals &amp; Visual Architecture Reference
-docs/RUNNING_AND_TESTING_GUIDE.md# CLI &amp; Test Verification Commands</pre>
+            <pre class="code-box">docs/ABU_TRACK_AND_SCAN_INTEGRATION_GUIDE.md # iOS, PC &amp; UE5 Ecosystem Blueprint
+docs/MCP_AND_API_GUIDE.md                    # MCP Tools, REST API &amp; UDP Discovery
+docs/USER_MANUAL.md                          # Complete Studio Operator Manual
+docs/DEVELOPER_GUIDE.md                      # Complete C/C++/Rust/Python SDK Guide</pre>
           </section>
         </div>
       </div>
@@ -1616,8 +1934,8 @@ docs/RUNNING_AND_TESTING_GUIDE.md# CLI &amp; Test Verification Commands</pre>
             <h2>Common Troubleshooting Solutions</h2>
             <ul style="font-size:0.83rem;color:#cbd5e1;line-height:1.65;padding-left:18px;margin:0;">
               <li><strong>Privileged PTP Ports (319/320) Blocked on Windows/macOS:</strong> Use the default <code>AbuSync Unprivileged CSPTP (UDP 50319/50320)</code> profile — it requires zero Administrator/root privileges and automatically binds via <code>TimestampedUdpSocket::bind_dual_mode</code>.</li>
+              <li><strong>iOS <code>NTPSyncClient.swift</code> Port 123 Blocked:</strong> Point <code>NTPSyncClient.swift</code> to unprivileged port <code>50320</code> on the Abu Clock PC — <code>SntpResponder</code> replies with a Stratum-1 48-byte RFC 4330 packet backed by <code>OverlayClock</code>.</li>
               <li><strong>Clock Status Stuck in <code>WARMING UP</code> or <code>UNLOCKED</code>:</strong> Ensure <code>8 Hz Auto-Sync Stream</code> is enabled in Tab 1 or click <strong>Fast-Forward 7.0s Warm-Up</strong> to complete the mandatory SMPTE ST 2059-2 7-second convergence window.</li>
-              <li><strong>Timecode Drift Against External NLE / Audio Recorder:</strong> Check whether your NLE timeline is Drop-Frame (<code>29.97 DF</code>, semicolon <code>;</code>) vs. Non-Drop-Frame (<code>29.97 NDF</code>, colon <code>:</code>).</li>
             </ul>
           </section>
         </div>
@@ -1629,6 +1947,78 @@ docs/RUNNING_AND_TESTING_GUIDE.md# CLI &amp; Test Verification Commands</pre>
     const API_BASE = "http://127.0.0.1:7878";
     let formInitialized = false;
     let toastTimer = null;
+    let hoverGuideEnabled = true;
+
+    function toggleHoverGuide() {
+      hoverGuideEnabled = !hoverGuideEnabled;
+      const btn = document.getElementById('btn-hover-guide');
+      const txt = document.getElementById('hover-guide-text');
+      const tip = document.getElementById('param-tooltip');
+      if (hoverGuideEnabled) {
+        txt.textContent = 'HOVER GUIDE: ON';
+        btn.className = 'badge info';
+        showToast('Interactive Parameter Hover Guide: ON');
+      } else {
+        txt.textContent = 'HOVER GUIDE: OFF';
+        btn.className = 'badge Unlocked';
+        tip.classList.remove('visible');
+        showToast('Interactive Parameter Hover Guide: OFF');
+      }
+    }
+
+    function initHoverTooltips() {
+      const tip = document.getElementById('param-tooltip');
+      const titleEl = document.getElementById('tip-title-text');
+      const descEl = document.getElementById('tip-desc-text');
+      const affectsEl = document.getElementById('tip-affects-list');
+
+      function positionTooltip(e) {
+        const pad = 16;
+        const rect = tip.getBoundingClientRect();
+        let x = e.clientX + pad;
+        let y = e.clientY + pad;
+        if (x + rect.width + 12 > window.innerWidth) {
+          x = Math.max(12, e.clientX - rect.width - pad);
+        }
+        if (y + rect.height + 12 > window.innerHeight) {
+          y = Math.max(12, e.clientY - rect.height - pad);
+        }
+        tip.style.left = x + 'px';
+        tip.style.top = y + 'px';
+      }
+
+      document.addEventListener('mouseover', (e) => {
+        if (!hoverGuideEnabled) return;
+        const target = e.target.closest('[data-tip-title]');
+        if (!target) {
+          tip.classList.remove('visible');
+          return;
+        }
+        titleEl.textContent = target.getAttribute('data-tip-title') || '';
+        descEl.textContent = target.getAttribute('data-tip-desc') || '';
+        const affectsRaw = target.getAttribute('data-tip-affects') || '';
+        affectsEl.innerHTML = affectsRaw
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
+          .map(s => `<span class="tip-chip">${s}</span>`)
+          .join('');
+        tip.classList.add('visible');
+        positionTooltip(e);
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!hoverGuideEnabled || !tip.classList.contains('visible')) return;
+        positionTooltip(e);
+      });
+
+      document.addEventListener('mouseout', (e) => {
+        const related = e.relatedTarget ? e.relatedTarget.closest('[data-tip-title]') : null;
+        if (!related) {
+          tip.classList.remove('visible');
+        }
+      });
+    }
 
     function showToast(msg) {
       const banner = document.getElementById('toast-banner');
@@ -1778,7 +2168,7 @@ docs/RUNNING_AND_TESTING_GUIDE.md# CLI &amp; Test Verification Commands</pre>
           snap.smpte_tlv.timecode_flags_hex + (snap.smpte_tlv.drop_frame ? ' (Drop-Frame)' : ' (Non-Drop-Frame)');
       }
 
-      // Tab 3: Trigger, Telemetry & Manifest
+      // Tab 3: Trigger, Telemetry, Ecosystem & Manifest
       const logs = snap.capture_logs || [];
       if (logs.length > 0) {
         const latest = logs[0];
@@ -1798,12 +2188,32 @@ docs/RUNNING_AND_TESTING_GUIDE.md# CLI &amp; Test Verification Commands</pre>
       if (snap.telemetry) {
         document.getElementById('telem-seq-badge').textContent = 'SEQ #' + snap.telemetry.sequence_num;
         document.getElementById('freed-d1-box').textContent =
-          `${snap.telemetry.freed_d1_hex}\n[Verified Modulo-256 Checksum Byte 28 = ${snap.telemetry.freed_d1_checksum_hex}]`;
+          `${snap.telemetry.freed_d1_hex}\n[29B Standard FreeD 0xD1 | Checksum Byte 28 = ${snap.telemetry.freed_d1_checksum_hex}]`;
+        const f37El = document.getElementById('freed-37b-box');
+        if (f37El) {
+          f37El.textContent =
+            `${snap.telemetry.freed_37b_hex || ''}\n[37B Abu Track & Scan FreeD (0xD1 + 8B int64_ms) | 100% Compatible with UDPStreamingManager.swift & camtrack_desktop_gui.py]`;
+        }
         document.getElementById('freed-d2-box').textContent =
-          `${snap.telemetry.freed_d2_hex}\n[Verified Modulo-256 Checksum Byte 40 = ${snap.telemetry.freed_d2_checksum_hex}]`;
+          `${snap.telemetry.freed_d2_hex}\n[41B AbuClock FreeD-TC 0xD2 (BCD + TAI ns) | Checksum Byte 40 = ${snap.telemetry.freed_d2_checksum_hex}]`;
         document.getElementById('otrk-json-box').textContent =
-          `// Wire Header (14B OTrk): ${snap.telemetry.opentrackio_wire_hex_prefix} (${snap.telemetry.opentrackio_total_bytes} bytes total)\n` +
+          `// --- 1. Enriched Abu Track & Scan LiveLink JSON (UDP 8080) ---\n` +
+          (snap.telemetry.abutrack_livelink_json || '') +
+          `\n\n// --- 2. SMPTE RIS OpenTrackIO (14B OTrk Header: ${snap.telemetry.opentrackio_wire_hex_prefix}, ${snap.telemetry.opentrackio_total_bytes}B) ---\n` +
           snap.telemetry.opentrackio_json;
+      }
+
+      const ecoBody = document.getElementById('ecosystem-nodes-body');
+      if (ecoBody && snap.ecosystem_nodes) {
+        ecoBody.innerHTML = snap.ecosystem_nodes.map(n => `
+          <tr>
+            <td><strong>${n.display_name}</strong><br/><span style="font-size:0.7rem;color:#94a3b8;">ID: ${n.node_id}</span></td>
+            <td>${n.platform}</td>
+            <td><code>${n.ip_address}</code> (UDP <code>${n.telemetry_port}</code> / CSPTP <code>${n.clock_port}</code>)</td>
+            <td>${(n.protocols || []).join(', ')}</td>
+            <td style="color:#34d399;font-weight:700;">${n.lock_state} (${n.offset_ns >= 0 ? '+' : ''}${n.offset_ns} ns @ ${n.frame_rate_str})</td>
+          </tr>
+        `).join('');
       }
 
       document.getElementById('manifest-json-box').textContent = snap.manifest_abuscan_json || '';
@@ -1925,7 +2335,7 @@ docs/RUNNING_AND_TESTING_GUIDE.md# CLI &amp; Test Verification Commands</pre>
         z_mm: Number(document.getElementById('pose-z').value),
         zoom_raw: Number(document.getElementById('pose-zoom').value),
         focus_raw: 4096
-      }, 'Synthesized OpenTrackIO & FreeD 0xD1/0xD2 packets');
+      }, 'Synthesized OpenTrackIO, FreeD (29B/37B/41B) & AbuTrack JSON');
     }
 
     function addManifestRecord() {
@@ -1940,6 +2350,7 @@ docs/RUNNING_AND_TESTING_GUIDE.md# CLI &amp; Test Verification Commands</pre>
         gnss_locked ? 'Appliance Locked to Primary GNSS/TCXO (Class 6)' : 'Appliance Switched to TCXO Holdover (Class 7)');
     }
 
+    initHoverTooltips();
     pollState();
     setInterval(pollState, 50);
   </script>
