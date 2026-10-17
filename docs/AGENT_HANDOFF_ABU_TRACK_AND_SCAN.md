@@ -100,3 +100,18 @@ Before modifying `Abu Track & Scan`, read these reference guides and drop-in SDK
   1. **Parse Enriched SMPTE Fields in `ParseAndPushJSON`:** Extract `"bcdTimecode"`, `"subframePhase"`, `"taiNs"`, and `"smpteTimecode"` from the JSON object when present (and also parse 41-byte `0xD2` FreeD packets alongside 29-byte and 37-byte `0xD1` packets in `ParseAndPushFreeD`).
   2. **Populate `CameraFrameData.MetaData.SceneTime`:** Convert `bcdTimecode` + `subframePhase` into `FQualifiedFrameTime(FFrameTime(FrameNumber, SubframePhase), FrameRate)` so UE5's LiveLink buffer interpolates camera poses using the exact iOS sensor exposure timestamp rather than `FPlatformTime::Seconds()` UDP arrival time.
   3. **Link `UAbuClockTimecodeProvider` & `UAbuClockCustomTimeStep`:** Include or bridge the classes from `c:\Users\USer\Documents\antigravity\abu-clock\integrations\unreal-plugin\AbuClockUE\` so UE5's engine tick and master timecode lock to `Abu Clock`.
+
+---
+
+## 5. Architectural Boundaries & Product Strategy: Embedded vs. Standalone (`Abu Clock` + `Abu Track & Scan`)
+
+Follow this **Hybrid Modular Architecture** ("Core Engine Embedded Inside + Master Service/Utility Outside") when developing across the platforms:
+
+| Platform | Architectural Rule | Concrete Developer Action for the `Abu Track & Scan` Agent |
+| :--- | :--- | :--- |
+| **1. Core Rust Engine (`abu-clock-core`, `abu-network`, `abu-ffi`)** | **Single Shared Core** | Never re-implement SMPTE ST 12-1 Drop-Frame math, 2-state Kalman PLL servo equations, or 37B/41B FreeD packing from scratch. Use `Abu Clock`'s SDKs (`AbuClockKit.swift`, `AbuClockWinClient.hpp`, `abu_clock.h`) or REST/UDP APIs. |
+| **2. iOS App (`CamTrack/`)** | **100% Embedded Inside `Abu Track & Scan` iOS (+ Built-in Slate Mode)** | iOS cannot run two foreground ARKit/camera apps at 60 fps simultaneously. Therefore, embed `AbuClockKit.swift` **directly inside** the `Abu Track & Scan` iOS app so the user only opens one iOS app on the camera rig. Also add a toggleable **"Full-Screen Digital Clapper Slate"** mode inside the iOS/iPadOS UI for optical slating of external Cinema/DSLR cameras. |
+| **3. Unreal Engine 5 Plugin (`UnrealPlugin/LiveLinkAbuTrack/`)** | **Merge into ONE Unified UE5 Plugin** | Do **not** force Unreal users to install two separate plugins (`LiveLinkAbuTrack` and `AbuClockUE`). Copy/merge `UAbuClockTimecodeProvider` and `UAbuClockCustomTimeStep` from `c:\Users\USer\Documents\antigravity\abu-clock\integrations\unreal-plugin\AbuClockUE\` directly into `UnrealPlugin/LiveLinkAbuTrack` so installing one UE5 plugin provides LiveLink 6-DoF tracking + Engine Timecode + CustomTimeStep genlock. |
+| **4. Windows PC (`DesktopSync/` vs. `abu-clock.exe`) & Web UI (`:7878`)** | **Standalone `abu-clock.exe` Master Service + Embedded Client Panel in `DesktopSync`** | Keep `abu-clock.exe` (`c:\Users\USer\Documents\antigravity\abu-clock\target\release\abu-clock.exe`) as a standalone Studio Control Center, background daemon, and LAN Web Slate (`http://<PC-IP>:7878`) because it also serves Omniverse, Abu Color, and external FreeD/LiDAR hardware. In `camtrack_desktop_gui.py`, automatically check if `127.0.0.1:7878` is running on startup — if not, auto-spawn `abu-clock.exe` in the background (or connect to it) and display its live SMPTE timecode, PLL lock status, and discovered nodes directly inside the `DesktopSync` UI. |
+| **5. Hardware Appliance (`abu-daemon`)** | **Standalone Raspberry Pi CM4/5 + DS3231 TCXO Grandmaster Box** | Runs `abu-daemon` independently on the LAN (`UDP 50319/50320`). Both `abu-clock.exe` and `Abu Track & Scan` auto-discover and lock to it via BMCA when present. |
+
