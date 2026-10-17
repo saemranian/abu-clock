@@ -13,3 +13,4 @@ All notable version transitions (`vA.B.C.D`, incremented by `+1` per completed a
 | `v0.0.0.7` | `2026-10-17T15:00:22Z` | `antigravity` | `P2-T2` | Mozilla UniFFI SDK (libabuclock) generating Swift, C++, C#, and Python bindings |
 | `v0.0.0.8` | `2026-10-17T15:03:14Z` | `antigravity` | `P2-T3` | Native integration modules for Abu Track & Scan (CamTrack-Pro-01) iOS and Windows apps |
 | `v0.0.0.9` | `2026-10-17T15:05:40Z` | `antigravity` | `P2-T4` | Unreal Engine 5 (TimecodeProvider + CustomTimeStep) and NVIDIA Omniverse (omni.abu.clock) plugins |
+| `v0.0.0.10` | `2026-10-17T15:08:11Z` | `antigravity` | `P3-T1` | Dedicated Linux hardware PTP daemon (/dev/ptp0), Maxim DS3231 RTC boot sync, and RoboSense gPTP configs |
