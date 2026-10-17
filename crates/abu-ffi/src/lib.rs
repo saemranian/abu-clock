@@ -16,7 +16,10 @@ use abu_network::{
 };
 use serde::{Deserialize, Serialize};
 
+pub mod manifest;
+
 pub use abu_clock_core::ABU_CLOCK_VERSION;
+pub use manifest::{AbuScanCaptureRecord, AbuScanSessionManifest};
 
 /// FFI-friendly timecode and frame phase snapshot.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

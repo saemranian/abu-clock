@@ -17,7 +17,7 @@ pub use smpte::{
 };
 
 /// Canonical 4-part crate version synchronized by `scripts/bump_version.py`.
-pub const ABU_CLOCK_VERSION: &str = "v0.0.0.7";
+pub const ABU_CLOCK_VERSION: &str = "v0.0.0.8";
 
 #[cfg(test)]
 mod tests {
