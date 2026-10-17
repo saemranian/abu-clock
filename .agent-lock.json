@@ -1,12 +1,12 @@
 {
-  "current_version": "v0.0.0.7",
+  "current_version": "v0.0.0.8",
   "active_locks": {
     "antigravity": {
       "status": "IDLE",
-      "branch": "agent/antigravity/P2-T2-uniffi-sdk",
-      "task_id": "P2-T2",
+      "branch": "agent/antigravity/P2-T3-abu-track-scan",
+      "task_id": "P2-T3",
       "locked_paths": [],
-      "timestamp_utc": "2026-10-17T15:00:22Z"
+      "timestamp_utc": "2026-10-17T15:03:14Z"
     },
     "chatgpt": {
       "status": "IDLE",
